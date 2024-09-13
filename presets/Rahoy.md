@@ -1,5 +1,5 @@
 # Rahoy
-Author: Simon Kirby
+Author: Simon Kirby (tweaked by Expert Sleepers Ltd)
 
 License: This work is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/?ref=chooser-v1) 
 
@@ -27,11 +27,11 @@ The left/right inputs are **Input 1** and **Input 2** - these are then the audio
 The 'Mix' parameter is the wet/dry control for the delay effect.
 
 ### Kirbinator
-The left/right inputs and outputs are **Output 1** and **Output 2**, so the algorithm works on the output of the delay. The 'Output mode' is set to 'Add', but this should really be 'Replace' - an updated version of this preset will correct that.
+The left/right inputs and outputs are **Output 1** and **Output 2**, so the algorithm works on the output of the delay. The 'Output mode' is set to 'Replace', so the algorithm's output replaces the signals on the busses.
 
 The Mix page allows us to set the Dry and Effect gains independently.
 
 On the Routing page, the 'Mark input' and 'Trigger input' are both set to **Aux 1**, which is the output from the Clock algorithm above.
 
 ### Reverb
-This algorithm's left/right inputs and outputs are **Output 1** and **Output 2**, so it is adding reverb to the Kirbinator output. 
+This algorithm's left/right inputs and outputs are **Output 1** and **Output 2**, so it is working on the Kirbinator output. The 'Output mode' is set to 'Replace', so the 'Mix' parameter is a wet/dry control for the reverb effect.
