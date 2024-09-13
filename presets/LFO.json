@@ -1,0 +1,93 @@
+{
+"kind": "disting NT preset",
+ "version": 1,
+ "name": "LFO                 ",
+ "slots": [
+ {
+  "guid": "note",
+   "specs": [
+   0,
+    0]
+   ,
+   "lines": [
+   "This simple example is",
+    " provided to illustrate",
+    " the example UI script",
+    " of the same name.",
+    " ",
+    " ",
+    " "]
+   ,
+   "name": "Notes - read me",
+   "parameters": [
+   0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0]
+   }
+  ,
+  {
+  "guid": "lfo ",
+   "specs": [
+   3,
+    0]
+   ,
+   "name": "LFO                    ",
+   "parameters": [
+   [
+    1]
+    ,
+    [
+    15,
+     0,
+     1,
+     5572,
+     1,
+     1000,
+     0,
+     0,
+     0,
+     500,
+     0,
+     0,
+     0,
+     0]
+    ,
+    [
+    16,
+     0,
+     1,
+     9169,
+     1,
+     0,
+     1000,
+     0,
+     0,
+     500,
+     0,
+     0,
+     0,
+     0]
+    ,
+    [
+    17,
+     0,
+     1,
+     12363,
+     1,
+     0,
+     0,
+     1000,
+     0,
+     500,
+     0,
+     0,
+     0,
+     0]
+    ]
+   }
+  ]
+ }
