@@ -1,0 +1,282 @@
+{
+"kind": "disting NT preset",
+ "version": 1,
+ "name": "Aleatoric Piano     ",
+ "slots": [
+ {
+  "guid": "note",
+   "specs": [
+   0,
+    0]
+   ,
+   "lines": [
+   "The Clock triggers two Shift",
+    " Register Random algorithms.",
+    "The are both quantized by the",
+    " Quantizer, which then",
+    " triggers the piano by CV/gate.",
+    "Delay and reverb effects",
+    " are applied at the end."]
+   ,
+   "name": "Notes - read me        ",
+   "parameters": [
+   0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0]
+   }
+  ,
+  {
+  "guid": "clck",
+   "specs": [
+   2,
+    0]
+   ,
+   "name": "Clock                  ",
+   "parameters": [
+   [
+    0,
+     1200,
+     1,
+     4,
+     2,
+     1,
+     2,
+     0,
+     0,
+     0]
+    ,
+    [
+    1,
+     21,
+     1,
+     0,
+     9,
+     0,
+     50,
+     1,
+     0]
+    ,
+    [
+    1,
+     23,
+     1,
+     0,
+     7,
+     0,
+     50,
+     1,
+     0]
+    ]
+   }
+  ,
+  {
+  "guid": "srra",
+   "specs": [
+   0,
+    0]
+   ,
+   "name": "Shift Register Random  ",
+   "parameters": [
+   21,
+    0,
+    22,
+    0,
+    84,
+    0,
+    8,
+    35,
+    0,
+    0,
+    0,
+    10,
+    50]
+   }
+  ,
+  {
+  "guid": "srra",
+   "specs": [
+   0,
+    0]
+   ,
+   "name": "Shift Register Random  ",
+   "parameters": [
+   23,
+    0,
+    24,
+    0,
+    76,
+    0,
+    8,
+    21,
+    10,
+    0,
+    0,
+    10,
+    50]
+   }
+  ,
+  {
+  "guid": "quan",
+   "specs": [
+   2,
+    0]
+   ,
+   "name": "Quantizer              ",
+   "parameters": [
+   [
+    0,
+     0,
+     0,
+     0,
+     1,
+     3,
+     0,
+     0,
+     2,
+     0,
+     0,
+     -1,
+     0,
+     48,
+     13081]
+    ,
+    [
+    22,
+     21,
+     22,
+     21,
+     0]
+    ,
+    [
+    24,
+     23,
+     24,
+     23,
+     0]
+    ]
+   }
+  ,
+  {
+  "guid": "pyms",
+   "specs": [
+   1,
+    16]
+   ,
+   "timbres": [
+   {
+    "folder": "LABS Soft Pno - PedOn"}
+    ]
+   ,
+   "name": "Poly Multisample       ",
+   "parameters": [
+   [
+    2,
+     0,
+     0,
+     0,
+     -1,
+     0,
+     48,
+     13081,
+     0,
+     0]
+    ,
+    [
+    0,
+     0,
+     55,
+     13,
+     14,
+     0,
+     0,
+     1,
+     1,
+     0,
+     0,
+     60,
+     100,
+     77,
+     100,
+     21,
+     23,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     0,
+     0,
+     1,
+     1,
+     0,
+     0,
+     1,
+     0,
+     3,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0]
+    ]
+   }
+  ,
+  {
+  "guid": "dels",
+   "specs": [
+   2,
+    0]
+   ,
+   "name": "Delay (Stereo)         ",
+   "parameters": [
+   13,
+    14,
+    13,
+    14,
+    0,
+    0,
+    100,
+    -6,
+    498,
+    50,
+    -100]
+   }
+  ,
+  {
+  "guid": "revb",
+   "specs": [
+   0,
+    0]
+   ,
+   "name": "Reverb                 ",
+   "parameters": [
+   13,
+    14,
+    13,
+    14,
+    1,
+    16,
+    2737,
+    1,
+    100,
+    60,
+    250,
+    25,
+    -12,
+    -6]
+   }
+  ]
+ }
