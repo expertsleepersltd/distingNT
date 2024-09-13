@@ -1,5 +1,5 @@
 # distingNT/tools
-Tool for the disting NT module.
+Tools for the disting NT module.
 
 © 2024 Expert Sleepers Ltd
 
