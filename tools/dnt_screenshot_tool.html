@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<head>
+
+<title>disting NT Screenshot Tool</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans">
+
+<style>
+body {
+	font-family: 'PT Sans', serif;
+}
+button {
+	font-family: 'PT Sans', serif;
+}
+button.big {
+	font-size: 120%;
+}
+select {
+	font-family: 'PT Sans', serif;
+}
+div.small {
+	font-size: 80%;
+}
+td.tc {
+	text-align: center;
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+tr.a {
+	background-color: #e0e0e0;
+}
+th {
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+textarea {
+    font-family: monospace;
+}
+</style>
+
+<script>
+function log( t ) {
+	var ta = document.getElementById( "log" );
+	var d = new Date();
+	var dd = d.toLocaleTimeString();
+	ta.value = ta.value + "\n" + dd + ": " + t;
+	ta.scrollTop = ta.scrollHeight;
+	return dd;
+}
+function status( t ) {
+    document.getElementById( "status" ).innerHTML = "Web MIDI status: " + t;
+}
+function nybbleChar( n ) {
+	if ( n >= 10 ) {
+		return String.fromCharCode( 'A'.charCodeAt( 0 ) + n - 10 );
+	}
+	return String.fromCharCode( '0'.charCodeAt( 0 ) + n );
+}
+function makeMsgSysEx() {
+	var d = [0xF0, 0x00, 0x21, 0x27, 0x6D, 0x02]
+	var len = d.length
+	var str = ""
+	for ( var i = 0; i < len; ++i ) {
+		str += String.fromCharCode( d[i] );
+	} 
+	var text = "Hello!\nThis message\nwas sent from\nthe config tool.";
+	str += text;
+	str += String.fromCharCode( 0xF7 );
+	return str;
+}
+function dumpSysex( data, id, prefix ) {
+	var len = data.length
+	var h = prefix
+	for ( var i = 0; i < len; ++i ) {
+		var b = data[ i ];
+		h += nybbleChar( b >> 4 );
+		h += nybbleChar( b & 0xf );
+		h += " ";
+		if ( ( i & 0xf ) === 0xf ) {
+			h += "\n";
+		}
+	} 
+	document.getElementById( id ).value = h;
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="small">
+At the time of writing this will work only in Google's <a href="http://www.google.com/chrome/">Chrome</a> browser. Chrome may block SysEx access if you run this from a website, in which case download the html file locally and run it from there.
+</div>
+<div class="small" id="status"></div>
+<p>
+
+<!--<button onclick="sendMsg()">Send Msg</button>-->
+<button class="big" onclick="request()">Take Screenshot</button>
+<label for="midioutput">Send to MIDI port:</label>
+<select id="midioutput" onchange='changeOutput()' accesskey="o"></select>
+<label for="midiinput">Listen on MIDI port: </label>
+<select id="midiinput" onchange='changeInput()' accesskey="i"></select>
+<label for="sysExId">SysEx ID: </label>
+<select id="sysExId" onchange='changeSysExId()' accesskey="s">
+<script>
+for ( let i=0; i<127; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" );
+}
+</script>
+</select>
+<p>
+<label for="border">Border:</label><input id='border' type='checkbox' checked>
+<label for="gamma">Gamma correct:</label><input id='gamma' type='checkbox' checked>
+<p>
+<textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
+<textarea rows=5 cols=45 name="text" id="txSysex"></textarea>
+<textarea rows=5 cols=45 name="text" id="rxSysex"></textarea>
+<p>
+<img id="result" />
+<p>
+
+<script>
+function processScreenshot( data ) {
+	let canvas=document.createElement("canvas");
+	let ctx=canvas.getContext("2d");
+	let gamma = document.getElementById( "gamma" ).checked;
+	let border = 0;
+	if ( document.getElementById( "border" ).checked ) {
+		border = 5;
+	}
+	canvas.width = 256 + 2 * border;
+	canvas.height = 64 + 2 * border;
+	let imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+	let d=imgData.data;
+	let x, y;
+	for ( y=0; y<canvas.height; ++y ) {
+		for ( x=0; x<canvas.width; ++x ) {
+			d[4*(canvas.width*y+x)+3] = 0xff;
+		}
+	}
+	for ( y=63; y>=0; --y )
+	{
+		for ( x=0; x<256; ++x )
+		{
+			let pix = 256*y + x;
+			let v = data[pix];
+			if ( gamma ) {
+				v = v * 0.066666666666667;
+				v = Math.pow( v, 0.45 );
+				v = v * 255;
+			} else {
+				v = ( v * 255 ) / 15;
+			}
+			pix = canvas.width*(y+border) + (x+border);
+			d[4*pix+0] = 0;
+			d[4*pix+1] = v;
+			d[4*pix+2] = v;
+		}
+	}
+	ctx.putImageData(imgData,0,0);
+	document.getElementById( "result" ).src=canvas.toDataURL();
+}
+</script>
+
+<script>
+var midi, data;
+const dntMIDIInKey = "dntMIDIInKey";
+const dntMIDIOutKey = "dntMIDIOutKey";
+const dexSysExKey = "dexSysExKey";
+const defaultDntPortName = "disting NT";
+
+var dexInPortName = defaultDntPortName;
+var dexOutPortName = defaultDntPortName;
+var sysExId;
+
+// debugging only:
+// localStorage.removeItem(dntMIDIInKey);
+// localStorage.removeItem(dntMIDIOutKey);
+// localStorage.removeItem(dexSysExKey);
+
+if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
+// alert("saving in port");
+    localStorage.setItem(dntMIDIInKey, defaultDntPortName);
+} 
+else {
+    dexInPortName = localStorage.getItem(dntMIDIInKey);
+// alert("retrieved in port name = " + dexInPortName);
+}
+
+if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
+// alert("saving out port name");
+    localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
+} 
+else {
+    dexOutPortName = localStorage.getItem(dntMIDIOutKey);
+// alert("retrieved out port name = " + dexOutPortName);
+}
+
+if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
+// alert("saving system exclusive ID);
+    localStorage.setItem(dexSysExKey, 0);
+} 
+else {
+    sysExId = localStorage.getItem(dexSysExKey);
+// alert("retrieved system exclusive ID = " + sysExId);
+}
+
+if ( navigator.requestMIDIAccess ) {
+    navigator.requestMIDIAccess ( {
+        sysex: true
+    } ).then(onMIDISuccess, onMIDIFailure);
+} else {
+    status("No MIDI support in your browser.");
+}
+function onMIDISuccess(midiAccess) {
+    midi = midiAccess;
+    let str = "";
+    let dex = -1;
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+	    str += "<option value='" + input.value.id + "'>" + input.value.name + "</option>";
+	    if ( input.value.name == dexInPortName) {
+		    dex = input.value.id;
+	    }
+    }
+    document.getElementById( "midiinput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midiinput" ).value = dex;
+    }
+
+    str = "";
+    dex = -1;
+    let outputs = midi.outputs.values();
+
+    for ( var output = outputs.next(); output && !output.done; output = outputs.next() ) {
+	    str += "<option value='" + output.value.id + "'>" + output.value.name + "</option>";
+	    if ( output.value.name == dexOutPortName) {
+		    dex = output.value.id;
+	    }
+    }
+    document.getElementById( "midioutput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midioutput" ).value = dex;
+    }
+
+	document.getElementById("sysExId").selectedIndex = sysExId;
+	changeInput();
+
+	log( "midi access granted" );
+    status("OK");
+}
+function onMIDIFailure(e) {
+	log( "midi access failure" );
+    status("No access to MIDI devices or your browser doesn't support WebMIDI API.");
+}
+function changeInput() {
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+    	input.value.onmidimessage = "";
+    }
+	var input = midi.inputs.get( document.getElementById( "midiinput" ).value );
+	input.onmidimessage = onMIDIMessage;
+
+	// Save the current port setting
+	let inputSelector = document.getElementById("midiinput"); 
+let selectedPortName = inputSelector.options[inputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIInKey, selectedPortName);
+}
+function changeOutput() {
+let outputSelector = document.getElementById("midioutput"); 
+let selectedPortName = outputSelector.options[outputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIOutKey, selectedPortName);
+}
+
+function changeSysExId() {
+	sysExId = document.getElementById( "sysExId" ).value;
+   localStorage.setItem(dexSysExKey, sysExId);
+}
+function onMIDIMessage(message) {
+    data = message.data;
+    var header = [ 240, 0, 33, 39, 0x6D, sysExId ];
+    for ( var i=0; i<6; ++i ) {
+    	if ( header[i] != data[i] ) {
+    		return;
+    	}
+    }
+	var dd = log( "received sysex (" + data.length + " bytes)" );
+	dumpSysex( data, "rxSysex", dd+"\n" );
+	if ( data[6] == 0x33 ) {
+		processScreenshot( data.slice( 8, -1 ) );
+	}
+}
+function request() {
+	var output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	if ( 1 ) {
+		let d = Math.floor( Date.now() / 1000 );
+		let n = new Date( Date.now() );
+		d -= n.getTimezoneOffset() * 60;
+		var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x04, 
+			(d>>28)&0xf, (d>>21)&0x7f, (d>>14)&0x7f, (d>>7)&0x7f, (d>>0)&0x7f, 
+			0xF7 ];
+		output.send( arr );
+		var dd = log( "sent RTC update to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x01, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent screenshot request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+function sendMsg() {
+	var str = makeMsgSysEx();
+	var arr = new Uint8Array( str.length );
+	for ( var i=0; i<str.length; ++i ) {
+		arr[i] = str.charCodeAt( i );
+	}
+	var output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	var dd = log( "sent sysex (" + str.length + " bytes)" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+</script>
+
+</body>

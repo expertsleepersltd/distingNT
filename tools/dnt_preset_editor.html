@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<head>
+
+<title>disting NT Preset Editor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans">
+
+<style>
+body {
+	font-family: 'PT Sans', serif;
+}
+button {
+	font-family: 'PT Sans', serif;
+}
+button.big {
+	font-size: 120%;
+}
+select {
+	font-family: 'PT Sans', serif;
+}
+div.small {
+	font-size: 80%;
+}
+td.tc {
+	text-align: center;
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+tr.a {
+	background-color: #e0e0e0;
+}
+th {
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+textarea {
+    font-family: monospace;
+}
+input.param_v {
+	width: 50px;
+}
+input.param_s {
+	width: 400px;
+	height: 10px;
+	-webkit-appearance: none;
+	background-color: #f0f0f0;
+	-webkit-border-radius: 20px;
+}
+button.param_def {
+	width: 40px;
+}
+div.pv_string {
+	display: inline;
+}
+.hidden {
+	position:absolute;
+	left:-10000px;
+	top:auto;
+	width:1px;
+	height:1px;
+	overflow:hidden;
+}
+</style>
+
+<script>
+function log( t ) {
+	var ta = document.getElementById( "log" );
+	var d = new Date();
+	var dd = d.toLocaleTimeString();
+	ta.value = ta.value + "\n" + dd + ": " + t;
+	ta.scrollTop = ta.scrollHeight;
+	return dd;
+}
+function status( t ) {
+    document.getElementById( "status" ).innerHTML = "Web MIDI status: " + t;
+}
+function nybbleChar( n ) {
+	if ( n >= 10 ) {
+		return String.fromCharCode( 'A'.charCodeAt( 0 ) + n - 10 );
+	}
+	return String.fromCharCode( '0'.charCodeAt( 0 ) + n );
+}
+function makeMsgSysEx() {
+	var d = [0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x02]
+	var len = d.length
+	var str = ""
+	for ( var i = 0; i < len; ++i ) {
+		str += String.fromCharCode( d[i] );
+	} 
+	var text = "Hello!\nThis message\nwas sent from\nthe config tool.";
+	str += text;
+	str += String.fromCharCode( 0xF7 );
+	return str;
+}
+function dumpSysex( data, id, prefix ) {
+	let len = data.length
+	let h = prefix
+	for ( let i = 0; i < len; ++i ) {
+		let b = data[ i ];
+		h += nybbleChar( b >> 4 );
+		h += nybbleChar( b & 0xf );
+		h += " ";
+		if ( ( i & 0xf ) === 0xf ) {
+			h += "\n";
+		}
+	} 
+	if ( document.getElementById( 'keep_log').checked ) {
+		h += "\n";
+		document.getElementById( id ).value += h;
+	}
+	else {
+		document.getElementById( id ).value = h;
+	}
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="small">
+At the time of writing this will work only in Google's <a href="http://www.google.com/chrome/">Chrome</a> browser. Chrome may block SysEx access if you run this from a website, in which case download the html file locally and run it from there.
+</div>
+<div class="small" id="status"></div>
+<p>
+
+<!--<button  accesskey="s" onclick="sendMsg()">Send Msg</button>-->
+<button class="big"  accesskey="r" onclick="request()">Refresh</button>
+<label for="midioutput">Send to MIDI port:</label>
+<select id="midioutput"  onchange='changeOutput()' accesskey="o"></select>
+<label for="midiinput">Listen on MIDI port: </label>
+<select id="midiinput"  accesskey="i" onchange='changeInput()'></select>
+<label for="sysExId">SysEx ID: </label>
+<select id="sysExId" onchange='changeSysExId()' accesskey="s">
+<script>
+for ( let i=0; i<127; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" );
+}
+</script>
+</select>
+<label for="slot">Slot: </label>
+<select id="slot" onchange='changeSlot()'>
+<script>
+for ( let i=0; i<32; ++i ) {
+	document.write( '<option value=' + i + '>' + (i+1) + '</option>' );
+}
+</script>
+</select>
+<label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
+<p>
+<label class="hidden" for="log">Log:</label><textarea rows=5 cols=50 id="log" accesskey="l" class="log" readOnly></textarea>
+<label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
+<label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x"></textarea>
+</p>
+<label for="algorithms_menu">Algorithms:</label>
+<select id="algorithms_menu" onchange='changeAlgorithm()'></select>
+<label id='spec1label' for="spec1"></label>
+<input id='spec1' type='number'></input>
+<label id='spec2label' for="spec2"></label>
+<input id='spec2' type='number'></input>
+<button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
+<p>
+<label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
+<label for="show_mapping_cv">Show CV mappings:</label>
+<input id='show_mapping_cv' type='checkbox' accesskey="c" onchange="toggleMappings('cv')">
+<label for="show_mapping_midi">Show MIDI mappings:</label>
+<input id='show_mapping_midi' type='checkbox' accesskey="m" onchange="toggleMappings('midi')">
+<label for="show_mapping_i2c">Show I2C mappings:</label>
+<input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
+<br>
+<label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
+<label for="mapping_name">Mapping name:</label>
+<input id='mapping_name' accesskey='n' type='text' onchange='send_mapping_name()'>
+<p>
+<div id='slot_algorithm_name'></div>
+<p>
+<div id='parameters'></div>
+
+<script>
+function processAlgorithm( data ) {
+	let guid = data.slice( 0, 4 );
+	for ( let i=0; i<numAlgorithms; ++i ) {
+		if ( guid[0] == factories[i][0][0] && guid[1] == factories[i][0][1] && guid[2] == factories[i][0][2] && guid[3] == factories[i][0][3] ) {
+			document.getElementById( "slot_algorithm_name" ).innerHTML = factories[i][3][0];
+			break;
+		}
+	}
+}
+
+function processPresetName( data ) {
+	var name = "";
+	for ( var i = 0; i < 21; ++i ) {
+		var n = data[i];
+		if ( n == 0 ) {
+			break;
+		}
+		name += String.fromCharCode( n );
+	}
+	document.getElementById( "preset_name" ).value = name;
+}
+
+var numAlgorithms = 0;
+
+function processNumAlgorithms( data ) {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	numAlgorithms = extractShort( data );
+	let str = '';
+	for ( let i=0; i<numAlgorithms; ++i ) {
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x31, (i>>14)&3, (i>>7)&0x7f, i&0x7f, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent algorithm info request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+		
+		str += '<option value =' + i + '>' + (i+1) + '</option>';
+	}
+	let m = document.getElementById( 'algorithms_menu' );
+	m.innerHTML = str;
+}
+
+var factories = [];
+
+function processAlgorithmInfo( data ) {
+	let index = extractShort( data.slice( 0, 3 ) );
+	let guid = data.slice( 3, 7 );
+	let numSpecs = data[7];
+	let factory = [ guid, numSpecs ];
+	let algSpecs = [];
+	let c = 8;
+	for ( let i=0; i<numSpecs; ++i ) {
+		let spec = [ extractShort( data.slice( c, c+3 ) ), extractShort( data.slice( c+3, c+6 ) ), extractShort( data.slice( c+6, c+9 ) ), data[c+9] ];
+		c += 10;
+		algSpecs.push( spec );
+	}
+	factory.push( algSpecs );
+	let names = [];
+	for ( let j=0; j<3; ++j ) {
+		let name = "";
+		for ( let i = 0; i < 32; ++i ) {
+			let n = data[c++];
+			if ( n == 0 || n == 0xf7 ) {
+				break;
+			}
+			name += String.fromCharCode( n );
+		}
+		names.push( name );
+	}
+	factory.push( names );
+	if ( index == 0 ) {
+		factories = [];
+	}
+	factories.push( factory );
+	let m = document.getElementById( 'algorithms_menu' );
+	m.options[ index ].text = names[0];
+	
+	if ( index == numAlgorithms-1 ) {
+		changeAlgorithm();
+	
+		let slot = document.getElementById( 'slot' ).value;
+		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, slot, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent algorithm request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+}
+
+function showMappings( n ) {
+	let vis = document.getElementById( "show_mapping_"+n ).checked ? "table-cell" : "none";
+	let elts = document.getElementsByClassName( 'map_'+n );
+	for ( let e of elts ) {
+    	e.style.display = vis;
+	}
+}
+
+function toggleMappings( n ) {
+	showMappings( n );
+	if ( !mappingRefreshed ) {
+		requestMapping() ;
+	}
+}
+
+var mappingRefreshed = false;
+var mappingTypes = [ "cv", "midi", "i2c" ];
+
+function anyMappingVisible() {
+	for ( let n of mappingTypes ) {
+		if ( document.getElementById( "show_mapping_"+n ).checked ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function refreshMappingVisibility() {
+	for ( let n of mappingTypes ) {
+		showMappings( n );
+	}
+}
+
+unitStrings = [];
+function processUnitStrings( data ) {
+	var num = data[0];
+	var c = 1;
+	unitStrings = [];
+    for ( var j = 0; j < num; ++j ) {
+		var name = "";
+		for ( var i = 0; i < 100; ++i ) {
+			var n = data[c++];
+			if ( n == 0 ) {
+				break;
+			}
+			name += String.fromCharCode( n );
+		}
+		unitStrings.push( name );
+	}
+}
+
+function processEnumStrings( data ) {
+	var p = extractShort( data.slice( 0, 3 ) );
+	var num = data[3];
+	var c = 4;
+	var str = "";
+	let toggle = ( num == 2 );
+    for ( var j = 0; j < num; ++j ) {
+		var name = "";
+		for ( var i = 0; i < 100; ++i ) {
+			var n = data[c++];
+			if ( n == 0 ) {
+				break;
+			}
+			name += String.fromCharCode( n );
+		}
+		str += "<option value=" + j + ">" + name + "</option>";
+		if ( j == 0 && name != "Off" ) {
+			toggle = false;
+		}
+		if ( j == 1 && name != "On" ) {
+			toggle = false;
+		}
+	}
+	if ( toggle ) {
+		var e = document.getElementById( "p" + p + "_c" );
+		var v = document.getElementById( "p" + p + "_s" ).value;
+		e.checked = v != 0;
+		e.style = 'display:inline;';
+	}
+	else {	
+		var e = document.getElementById( "p" + p + "_e" );
+		e.innerHTML = str;
+		e.value = document.getElementById( "p" + p + "_s" ).value;
+		e.style = 'display:inline;';
+	}
+}
+
+function processMapping( data ) {
+	let p = extractShort( data.slice( 0, 3 ) );
+	let c = 3;
+	let version = data[c]; c++;
+	if ( version != 1 ) {
+		alert( "Version of the mapping data does not match the expected value for this version of the tool" );
+		return;
+	}
+	{
+		let input = data[c]; c++;
+		let flags = data[c]; c++;
+		let volts = data[c]; c++;
+		let delta = extractShort( data.slice( c, c+3 ) ); c += 3;
+
+		document.getElementById( "p" + p + "_cv_input" ).value = input;
+		document.getElementById( "p" + p + "_cv_uni" ).checked = flags & 1;
+		document.getElementById( "p" + p + "_cv_gate" ).checked = flags & 2;
+		document.getElementById( "p" + p + "_cv_volts" ).value = volts;
+		document.getElementById( "p" + p + "_cv_delta" ).value = delta;
+
+		style_cv_input( p );
+	}
+	{
+		let cc = data[c]; c++;
+		let flags = data[c]; c++;
+		let min = extractShort( data.slice( c, c+3 ) ); c += 3;
+		let max = extractShort( data.slice( c, c+3 ) ); c += 3;
+		if ( flags & 4 ) {
+			cc = 128;
+		}
+		document.getElementById( "p" + p + "_midi_ch" ).value = ( flags >> 3 ) & 0xf;
+		document.getElementById( "p" + p + "_midi_cc" ).value = cc;
+		document.getElementById( "p" + p + "_midi_en" ).checked = flags & 1;
+		document.getElementById( "p" + p + "_midi_sym" ).checked = flags & 2;
+		document.getElementById( "p" + p + "_midi_min" ).value = min;
+		document.getElementById( "p" + p + "_midi_max" ).value = max;
+	}
+	{
+		let cc = data[c]; c++;
+		let flags = data[c]; c++;
+		let min = extractShort( data.slice( c, c+3 ) ); c += 3;
+		let max = extractShort( data.slice( c, c+3 ) ); c += 3;
+		document.getElementById( "p" + p + "_i2c_cc" ).value = cc;
+		document.getElementById( "p" + p + "_i2c_en" ).checked = flags & 1;
+		document.getElementById( "p" + p + "_i2c_sym" ).checked = flags & 2;
+		document.getElementById( "p" + p + "_i2c_min" ).value = min;
+		document.getElementById( "p" + p + "_i2c_max" ).value = max;
+	}
+	mappingRefreshed = true;
+}
+
+nextParameterToGet = 0;
+numParametersToGet = 0;
+function getNextParameter() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x43, slot, (nextParameterToGet>>14)&3, (nextParameterToGet>>7)&0x7f, nextParameterToGet&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter info request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	nextParameterToGet += 1;
+	if ( nextParameterToGet >= numParametersToGet ) {
+		return;
+	}
+	setTimeout( getNextParameter, 20 );
+}
+
+numParameters = 0;
+function processNumParameters( data ) {
+	let num = extractShort( data.slice( 0, 3 ) );
+	if ( num >= 256 ) {
+		alert( "Invalid num parameters in processNumParameters()" );
+		return;
+	}
+	numParameters = num;
+	var str = "<table>";
+	str += "<thead>";
+	str += "<tr><th colspan=8>Preset</th><th colspan=5 class='map_cv'>CV Mapping</th><th colspan=6 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
+	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
+	str += "<th class='map_cv'>Source</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
+	str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
+	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
+	str += "</tr>";
+	str += "</thead><tbody>";
+
+	for ( let i=0; i<num; ++i ) {
+		str += "<tr id=row" + i + " class=" + ((i&1)?"a":"b") + "><td>" + (i+1) + "</td>";
+		str += "<td id=p" + i + "_name><h1>" + "</h1></td>";
+		str += "<td id=p" + i + "_min>" + "</td>";
+		str += "<td id=p" + i + "_max>" + "</td>";
+		var focus = " onfocus='param_focus(" + i + ")' ";
+		str += "<td><button id=p" + i + "_def class='param_def' onclick='param_def(" + i + ")'" + focus + "></button></td>";
+		str += "<td id=p" + i + "_unit>" + "</td>";
+		str += "<td><input id=p" + i + "_v type='number' class='param_v' size=6 onchange='param_text(" + i + ")'" + focus + ">" + "</td>";
+		str += "<td>";
+		str += "<input id=p" + i + "_s type='range' min='-32768' max='32767' class='param_s' onInput='param_slider(" + i + ")' ondblclick='param_def(" + i + ")'" + focus + ">";
+		str += "<select id=p" + i + "_e class='param_e' onchange='param_enum(" + i + ")' style='display:none;'" + focus + "></select>";
+		str += "<input id=p" + i + "_c type='checkbox' class='param_c' onchange='param_check(" + i + ")' style='display:none;'" + focus + ">";
+		str += "<div class='pv_string' id=p" + i + "_pv></div>";
+		str += "</td>";
+
+		{
+			str += "<td class='map_cv'><select id=p" + i + "_cv_input onchange='mapping_cv_input(" + i + ")'><option value=0>None</option>";
+			for ( let j=1; j<=12; ++j ) {
+				str += "<option value=" + j + ">Input " + j + "</option>";
+			}
+			for ( let j=1; j<=8; ++j ) {
+				str += "<option value=" + (12+j) + ">Output " + j + "</option>";
+			}
+			for ( let j=1; j<=8; ++j ) {
+				str += "<option value=" + (20+j) + ">Aux " + j + "</option>";
+			}
+			str += "</select></td>";
+			str += "<td class='map_cv'><input id=p" + i + "_cv_uni type='checkbox' class='param_c' onchange='mapping_cv_uni(" + i + ")'></td>";
+			str += "<td class='map_cv'><input id=p" + i + "_cv_gate type='checkbox' class='param_c' onchange='mapping_cv_gate(" + i + ")'></td>";
+			str += "<td class='map_cv'><input id=p" + i + "_cv_volts type='number' class='param_v' size=3 step='1' min='1' max='12' onchange='mapping_cv_volts(" + i + ")'></td>";
+			str += "<td class='map_cv'><input id=p" + i + "_cv_delta type='number' class='param_v' size=7 step='1' min='-32768' max='32767' onchange='mapping_cv_delta(" + i + ")'></td>";
+		}
+
+			str += "<td class='map_midi'><select id=p" + i + "_midi_ch class='param_v' onchange='mapping_midi_ch(" + i + ")'>";
+			for ( let j=0; j<16; ++j ) {
+				str += "<option value=" + j + ">" + (j+1) + "</option>";
+			}
+			str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
+			for ( let j=0; j<128; ++j ) {
+				str += "<option value=" + j + ">" + j + "</option>";
+			}
+			str += "<option value=128>Aftertouch</option></select></td>";
+			str += "<td class='map_midi'><input id=p" + i + "_midi_en type='checkbox' class='param_c' onchange='mapping_midi_en(" + i + ")'></td>";
+			str += "<td class='map_midi'><input id=p" + i + "_midi_sym type='checkbox' class='param_c' onchange='mapping_midi_sym(" + i + ")'></td>";
+			str += "<td class='map_midi'><input id=p" + i + "_midi_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_min(" + i + ")'></td>";
+			str += "<td class='map_midi'><input id=p" + i + "_midi_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_max(" + i + ")'></td>";
+
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_cc type='number' class='param_v' size=3 min='0' max='127' onchange='mapping_i2c_cc(" + i + ")'></td>";
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_en type='checkbox' class='param_c' onchange='mapping_i2c_en(" + i + ")'></td>";
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
+
+		str += "</tr>";
+	}
+	str += "</tbody></table>";
+	document.getElementById( "parameters" ).innerHTML = str;
+	nextParameterToGet = 0;
+	numParametersToGet = num;
+	setTimeout( getNextParameter, 20 );
+
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x44, slot, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter values request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+
+	refreshMappingVisibility();
+	mappingRefreshed = false;
+	if ( anyMappingVisible() ) {
+		requestMapping();
+	}
+}
+
+nextMappingToGet = 0;
+numMappingsToGet = 0;
+function getNextMapping() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4B, slot, (nextMappingToGet>>14)&3, (nextMappingToGet>>7)&0x7f, nextMappingToGet&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent mapping request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	nextMappingToGet += 1;
+	if ( nextMappingToGet >= numMappingsToGet ) {
+		return;
+	}
+	setTimeout( getNextMapping, 20 );
+}
+
+function requestMapping() {
+	nextMappingToGet = 0;
+	numMappingsToGet = numParameters;
+	setTimeout( getNextMapping, 20 );
+}
+
+function extractShort( data ) {
+	var v = ( data[0] << 14 ) | ( data[1] << 7 ) | ( data[2] );
+	v = ( v << 16 ) >> 16;
+	return v;
+}
+
+function processParameterInfo( data ) {
+	var p = extractShort( data.slice( 0, 3 ) );
+	var min = extractShort( data.slice( 3, 6 ) );
+	var max = extractShort( data.slice( 6, 9 ) );
+	var def = extractShort( data.slice( 9, 12 ) );
+	var unit = data[12];
+	var name = "";
+	for ( var i = 0; i < 24; ++i ) {
+		var n = data[13+i];
+		if ( n == 0 ) {
+			break;
+		}
+		name += String.fromCharCode( n );
+	}
+	if ( name.length == 0 ) {
+		document.getElementById( "row" + p ).style='display:none;';
+	}
+	document.getElementById( "p" + p + "_min" ).innerHTML = min;
+	document.getElementById( "p" + p + "_max" ).innerHTML = max;
+	document.getElementById( "p" + p + "_def" ).innerHTML = def;
+	var unitStr = "";
+	if ( unit < 1 && min == 0 && max == 1 ) {
+		var e = document.getElementById( "p" + p + "_c" );
+		var v = document.getElementById( "p" + p + "_s" ).value;
+		e.checked = v != 0;
+		e.style = 'display:inline;';
+	} else if ( unit == 1 ) {
+		let slot = document.getElementById( 'slot' ).value;
+		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x49, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent enum string request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	} else if ( unit == 13 || unit == 14 || unit == 17 ) {
+		unitStr = "<br>";
+		setTimeout( requestParameterValueString, 1000, p );
+	} else if ( unit > 0 && (unit-1) < unitStrings.length ) {
+		unitStr = unitStrings[ unit-1 ];
+	}
+	document.getElementById( "p" + p + "_unit" ).innerHTML = unitStr;
+	document.getElementById( "p" + p + "_name" ).innerHTML = name;
+	var s = document.getElementById( "p" + p + "_s" );
+	s.min = min;
+	s.max = max;
+}
+
+function processAllParameterValues( data ) {
+	var p;
+	var num = data.length / 3;
+	var c = 0;
+	for ( p=0; p<num; ++p ) {
+		var v = extractShort( data.slice( c, c+3 ) );
+		c += 3;
+		if ( document.getElementById( "p" + p + "_v" ) == null ) {
+			continue;
+		}
+		document.getElementById( "p" + p + "_v" ).value = v;
+	    document.getElementById( "p" + p + "_s" ).value = v;
+	    document.getElementById( "p" + p + "_e" ).value = v;
+	    document.getElementById( "p" + p + "_c" ).checked = v;
+	}
+}
+
+function processParameterValue( data ) {
+	let p = extractShort( data.slice( 1, 4 ) );
+	let v = extractShort( data.slice( 4, 7 ) );
+    document.getElementById( "p" + p + "_v" ).value = v;
+    document.getElementById( "p" + p + "_s" ).value = v;
+    document.getElementById( "p" + p + "_e" ).value = v;
+    document.getElementById( "p" + p + "_c" ).checked = v;
+}
+
+function processParameterValueString( data ) {
+	let p = extractShort( data.slice( 0, 3 ) );
+	let name = "";
+	for ( let i = 0; i < 22; ++i ) {
+		let n = data[3+i];
+		if ( n == 0 ) {
+			break;
+		}
+		name += String.fromCharCode( n );
+	}
+    document.getElementById( "p" + p + "_pv" ).innerHTML = name;
+}
+
+function requestParameterValue( p ) {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x45, slot, p, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter value request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function requestParameterValueString( p ) {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x50, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter value string request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function send_preset_name() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x47, slot ];
+	var name = document.getElementById( "preset_name" ).value;
+	name += "                ";
+	name = name.substring( 0, 16 );
+	for ( var i = 0; i < 16; ++i ) {
+		arr.push( name.charCodeAt( i ) );
+	}
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent preset name update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function send_mapping_name() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4C, slot ];
+	let name = document.getElementById( "mapping_name" ).value;
+	name += "                ";
+	name = name.substring( 0, 16 );
+	for ( var i = 0; i < 16; ++i ) {
+		arr[6+i] = name.charCodeAt( i );
+	}
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent mapping name update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function sendSetValue( p, v ) {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x46, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, (v>>14)&3, (v>>7)&0x7f, v&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	setTimeout( requestParameterValue, 5, p );
+	let unitStr = document.getElementById( "p" + p + "_unit" ).innerHTML;
+	if ( unitStr == "<br>" ) {
+		setTimeout( requestParameterValueString, 10, p );
+	}
+}
+
+function param_def( p ) {
+	var v = document.getElementById( "p" + p + "_def" ).innerHTML;
+	sendSetValue( p, v );
+}
+
+function param_slider( p ) {
+	var v = document.getElementById( "p" + p + "_s" ).value;
+	sendSetValue( p, v );
+}
+
+function param_enum( p ) {
+	var v = document.getElementById( "p" + p + "_e" ).value;
+	sendSetValue( p, v );
+}
+
+function param_check( p ) {
+	var v = document.getElementById( "p" + p + "_c" ).checked;
+	sendSetValue( p, v );
+}
+
+function param_text( p ) {
+	var v = document.getElementById( "p" + p + "_v" ).value;
+	sendSetValue( p, v );
+}
+
+function param_focus( p ) {
+	if ( document.getElementById( 'auto_focus' ).checked ) {
+		let slot = document.getElementById( 'slot' ).value;
+		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4A, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent focus update to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+}
+
+function mapping_send( p ) {
+	let input = document.getElementById( "p" + p + "_cv_input" ).value;
+	let cv_uni = document.getElementById( "p" + p + "_cv_uni" ).checked;
+	let cv_gate = document.getElementById( "p" + p + "_cv_gate" ).checked;
+	let flags = cv_uni | ( cv_gate << 1 );
+	let volts = document.getElementById( "p" + p + "_cv_volts" ).value;
+	let delta = document.getElementById( "p" + p + "_cv_delta" ).value;
+
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4D, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, input, flags, volts, (delta>>14)&3, (delta>>7)&0x7f, delta&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent CV mapping update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function style_cv_input( p ) {
+	let e = document.getElementById( "p" + p + "_cv_input" );
+	let v = e.value;
+	e.style.background = v > 0 ? "chartreuse" : "";
+}
+
+function mapping_cv_input( p ) {
+	style_cv_input( p );
+	mapping_send( p );
+}
+function mapping_cv_uni( p ) {
+	mapping_send( p );
+}
+function mapping_cv_gate( p ) {
+	mapping_send( p );
+}
+function mapping_cv_scale( p ) {
+	mapping_send( p );
+}
+function mapping_cv_volts( p ) {
+	mapping_send( p );
+}
+function mapping_cv_delta( p ) {
+	mapping_send( p );
+}
+
+function mapping_midi( p ) {
+	let ch = document.getElementById( "p" + p + "_midi_ch" ).value;
+	let cc = document.getElementById( "p" + p + "_midi_cc" ).value;
+	let en = document.getElementById( "p" + p + "_midi_en" ).checked;
+	let sym = document.getElementById( "p" + p + "_midi_sym" ).checked;
+	let flags = en | ( sym << 1 ) | ( ( ch & 0xf ) << 3 );
+	let min = document.getElementById( "p" + p + "_midi_min" ).value;
+	let max = document.getElementById( "p" + p + "_midi_max" ).value;
+	
+	if ( cc == 128 ) {
+		cc = 0;
+		flags |= (1<<2);
+	}
+
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4E, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent midi mapping update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function mapping_midi_ch( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_cc( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_en( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_sym( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_min( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_max( p ) {
+	mapping_midi( p );
+}
+
+function mapping_i2c( p ) {
+	let cc = document.getElementById( "p" + p + "_i2c_cc" ).value;
+	let en = document.getElementById( "p" + p + "_i2c_en" ).checked;
+	let sym = document.getElementById( "p" + p + "_i2c_sym" ).checked;
+	let flags = en | ( sym << 1 );
+	let min = document.getElementById( "p" + p + "_i2c_min" ).value;
+	let max = document.getElementById( "p" + p + "_i2c_max" ).value;
+
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4F, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent midi mapping update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function mapping_i2c_cc( p ) {
+	mapping_i2c( p );
+}
+function mapping_i2c_en( p ) {
+	mapping_i2c( p );
+}
+function mapping_i2c_sym( p ) {
+	mapping_i2c( p );
+}
+function mapping_i2c_min( p ) {
+	mapping_i2c( p );
+}
+function mapping_i2c_max( p ) {
+	mapping_i2c( p );
+}
+</script>
+
+<script>
+var midi, data;
+const dntMIDIInKey = "dntMIDIInKey";
+const dntMIDIOutKey = "dntMIDIOutKey";
+const dexSysExKey = "dexSysExKey";
+const defaultDntPortName = "disting NT";
+
+var dexInPortName = defaultDntPortName;
+var dexOutPortName = defaultDntPortName;
+var sysExId ;
+
+// debugging only:
+// localStorage.removeItem(dntMIDIInKey);
+// localStorage.removeItem(dntMIDIOutKey);
+// localStorage.removeItem(dexSysExKey);
+
+if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
+// alert("saving in port");
+    localStorage.setItem(dntMIDIInKey, defaultDntPortName);
+} 
+else {
+    dexInPortName = localStorage.getItem(dntMIDIInKey);
+// alert("retrieved in port name = " + dexInPortName);
+}
+
+if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
+// alert("saving out port name");
+    localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
+} 
+else {
+    dexOutPortName = localStorage.getItem(dntMIDIOutKey);
+// alert("retrieved out port name = " + dexOutPortName);
+}
+
+if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
+alert("saving system exclusive ID");
+    localStorage.setItem(dexSysExKey, 0);
+} 
+else {
+    sysExId = localStorage.getItem(dexSysExKey);
+// alert("retrieved system exclusive ID = " + sysExId);
+}
+
+var sendRTC = true;
+
+if ( navigator.requestMIDIAccess ) {
+    navigator.requestMIDIAccess ( {
+        sysex: true
+    } ).then(onMIDISuccess, onMIDIFailure);
+} else {
+    status("No MIDI support in your browser.");
+}
+function onMIDISuccess(midiAccess) {
+    midi = midiAccess;
+    let str = "";
+    let dex = -1;
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+	    str += "<option value='" + input.value.id + "'>" + input.value.name + "</option>";
+	    if ( input.value.name == dexInPortName ) {
+		    dex = input.value.id;
+	    }
+    }
+    document.getElementById( "midiinput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midiinput" ).value = dex;
+    }
+
+    str = "";
+    dex = -1;
+    let outputs = midi.outputs.values();
+
+    for ( var output = outputs.next(); output && !output.done; output = outputs.next() ) {
+	    str += "<option value='" + output.value.id + "'>" + output.value.name + "</option>";
+	    if ( output.value.name == dexOutPortName ) {
+		    dex = output.value.id;
+	    }
+    }
+    document.getElementById( "midioutput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midioutput" ).value = dex;
+    }
+
+	document.getElementById("sysExId").selectedIndex = sysExId;
+	changeInput();
+
+	log( "midi access granted" );
+    status("OK");
+}
+function onMIDIFailure(e) {
+	log( "midi access failure" );
+    status("No access to MIDI devices or your browser doesn't support WebMIDI API.");
+}
+function changeInput() {
+    var inputs = midi.inputs.values();
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+    	input.value.onmidimessage = "";
+    }
+	var input = midi.inputs.get( document.getElementById( "midiinput" ).value );
+	input.onmidimessage = onMIDIMessage;
+
+	// Save the current port setting
+	let inputSelector = document.getElementById("midiinput"); 
+let selectedPortName = inputSelector.options[inputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIInKey, selectedPortName);
+}
+
+function changeOutput() {
+let outputSelector = document.getElementById("midioutput"); 
+let selectedPortName = outputSelector.options[outputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIOutKey, selectedPortName);
+    sendRTC = true;
+}
+
+function changeSysExId() {
+	sysExId = document.getElementById( "sysExId" ).value;
+   localStorage.setItem(dexSysExKey, sysExId);
+   sendRTC = true;
+}
+
+function changeAlgorithm() {
+	let index = document.getElementById( 'algorithms_menu' ).value;
+	let factory = factories[ index ];
+	let numSpecs = factory[ 1 ];
+	if ( numSpecs > 0 ) {
+		document.getElementById( 'spec1label' ).innerHTML = factory[3][1] + ":";
+		let t = document.getElementById( 'spec1' );
+		t.min = factory[2][0][0];
+		t.max = factory[2][0][1];
+		t.value = factory[2][0][2];
+		t.style = 'display:inline;';
+	} else {
+		document.getElementById( 'spec1label' ).innerHTML = "";
+		document.getElementById( 'spec1' ).style='display:none;';
+	}
+	if ( numSpecs > 1 ) {
+		document.getElementById( 'spec2label' ).innerHTML = factory[3][2] + ":";
+		let t = document.getElementById( 'spec2' );
+		t.min = factory[2][1][0];
+		t.max = factory[2][1][1];
+		t.value = factory[2][1][2];
+		t.style = 'display:inline;';
+	} else {
+		document.getElementById( 'spec2label' ).innerHTML = "";
+		document.getElementById( 'spec2' ).style='display:none;';
+	}
+}
+
+function addAlgorithm() {
+	let index = document.getElementById( 'algorithms_menu' ).value;
+	let factory = factories[ index ];
+	let guid = factory[ 0 ];
+	let numSpecs = factory[ 1 ];
+	let specs = [ 0, 0 ];
+	if ( numSpecs > 0 ) {
+		specs[0] = document.getElementById( 'spec1' ).value;
+	}
+	if ( numSpecs > 1 ) {
+		specs[1] = document.getElementById( 'spec2' ).value;
+	}
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x32, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent add algorithm request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function changeSlot() {
+	request();
+}
+
+function onMIDIMessage(message) {
+    data = message.data;
+    let header = [ 240, 0, 33, 39, 0x6D, sysExId ];
+    for ( var i=0; i<6; ++i ) {
+    	if ( header[i] != data[i] ) {
+    		return;
+    	}
+    }
+	let slot = document.getElementById( 'slot' ).value;
+	let rxSlot = data[7];
+	let dd = log( "received sysex (" + data.length + " bytes)" );
+	dumpSysex( data, "rxSysex", dd+"\n" );
+	if ( data[6] == 0x30 ) {
+		processNumAlgorithms( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x31 ) {
+		processAlgorithmInfo( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x40 ) {
+		if ( rxSlot == slot ) {
+			processAlgorithm( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x41 ) {
+    	processPresetName( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x42 ) {
+		if ( rxSlot == slot ) {
+			processNumParameters( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x43 ) {
+		if ( rxSlot == slot ) {
+			processParameterInfo( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x44 ) {
+		if ( rxSlot == slot ) {
+			processAllParameterValues( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x45 ) {
+		if ( rxSlot == slot ) {
+			processParameterValue( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x48 ) {
+		processUnitStrings( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x49 ) {
+		if ( rxSlot == slot ) {
+			processEnumStrings( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x4B ) {
+		if ( rxSlot == slot ) {
+			processMapping( data.slice( 8, -1 ) );
+		}
+	} else if ( data[6] == 0x50 ) {
+		if ( rxSlot == slot ) {
+			processParameterValueString( data.slice( 8, -1 ) );
+		}
+	}
+}
+function request() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let slot = document.getElementById( 'slot' ).value;
+	
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent algorithm names request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x41, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent preset name request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x48, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent unit strings request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, slot, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent num parameters request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x30, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent num algorithms request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	mappingRefreshed = false;
+	if ( sendRTC ) {
+		sendRTC = false;
+		let d = Math.floor( Date.now() / 1000 );
+		let n = new Date( Date.now() );
+		d -= n.getTimezoneOffset() * 60;
+		var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x04, 
+			(d>>28)&0xf, (d>>21)&0x7f, (d>>14)&0x7f, (d>>7)&0x7f, (d>>0)&0x7f, 
+			0xF7 ];
+		output.send( arr );
+		var dd = log( "sent RTC update to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+}
+function sendMsg() {
+	var str = makeMsgSysEx();
+	var arr = new Uint8Array( str.length );
+	for ( var i=0; i<str.length; ++i ) {
+		arr[i] = str.charCodeAt( i );
+	}
+	var output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	var dd = log( "sent sysex (" + str.length + " bytes)" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+</script>
+
+</body>
