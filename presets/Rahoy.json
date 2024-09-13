@@ -1,0 +1,149 @@
+{
+"kind": "disting NT preset",
+ "version": 1,
+ "name": "Rahoy               ",
+ "slots": [
+ {
+  "guid": "note",
+   "specs": [
+   0,
+    0]
+   ,
+   "lines": [
+   "This is an example of",
+    " the Kirbinator algorithm,",
+    " prepared by its namesake,",
+    " Simon Kirby.",
+    "It is a sound much used",
+    " on his album",
+    " 'At Rahoy, the Early Light'."]
+   ,
+   "name": "Feed me audio",
+   "parameters": [
+   0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0]
+   }
+  ,
+ {
+  "guid": "clck",
+   "specs": [
+   1,
+    0]
+   ,
+   "name": "Clock                  ",
+   "parameters": [
+   [
+    0,
+     1000,
+     1,
+     4,
+     2,
+     1,
+     0,
+     0,
+     0,
+     0]
+    ,
+    [
+    1,
+     21,
+     1,
+     0,
+     12,
+     0,
+     50,
+     1,
+     0]
+    ]
+   }
+  ,
+  {
+  "guid": "dels",
+   "specs": [
+   8,
+    0]
+   ,
+   "name": "Delay (Stereo)         ",
+   "parameters": [
+   1,
+    2,
+    13,
+    14,
+    0,
+    1,
+    27,
+    0,
+    8000,
+    42,
+    -100]
+   }
+  ,
+  {
+  "guid": "krby",
+   "specs": [
+   5,
+    0]
+   ,
+   "name": "Kirbinator             ",
+   "parameters": [
+   13,
+    14,
+    13,
+    14,
+    0,
+    21,
+    21,
+    0,
+    -8,
+    0,
+    18,
+    5,
+    35,
+    73,
+    48,
+    72,
+    24,
+    74,
+    0,
+    64,
+    112,
+    0,
+    1,
+    16,
+    0,
+    16,
+    1,
+    0,
+    78]
+   }
+  ,
+  {
+  "guid": "revb",
+   "specs": [
+   0,
+    0]
+   ,
+   "name": "Reverb                 ",
+   "parameters": [
+   13,
+    14,
+    13,
+    14,
+    0,
+    27,
+    5553,
+    1,
+    100,
+    30,
+    250,
+    25,
+    -14,
+    -2]
+   }
+  ]
+ }
