@@ -85,7 +85,7 @@ function makeMsgSysEx() {
 	var str = ""
 	for ( var i = 0; i < len; ++i ) {
 		str += String.fromCharCode( d[i] );
-	} 
+	}
 	var text = "Hello!\nThis message\nwas sent from\nthe config tool.";
 	str += text;
 	str += String.fromCharCode( 0xF7 );
@@ -102,7 +102,7 @@ function dumpSysex( data, id, prefix ) {
 		if ( ( i & 0xf ) === 0xf ) {
 			h += "\n";
 		}
-	} 
+	}
 	if ( document.getElementById( 'keep_log').checked ) {
 		h += "\n";
 		document.getElementById( id ).value += h;
@@ -209,7 +209,7 @@ function processNumAlgorithms( data ) {
 		output.send( arr );
 		let dd = log( "sent algorithm info request to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
-		
+
 		str += '<option value =' + i + '>' + (i+1) + '</option>';
 	}
 	let m = document.getElementById( 'algorithms_menu' );
@@ -250,10 +250,10 @@ function processAlgorithmInfo( data ) {
 	factories.push( factory );
 	let m = document.getElementById( 'algorithms_menu' );
 	m.options[ index ].text = names[0];
-	
+
 	if ( index == numAlgorithms-1 ) {
 		changeAlgorithm();
-	
+
 		let slot = document.getElementById( 'slot' ).value;
 		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, slot, 0xF7 ];
@@ -411,7 +411,7 @@ function getNextParameter() {
 	output.send( arr );
 	let dd = log( "sent parameter info request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	nextParameterToGet += 1;
 	if ( nextParameterToGet >= numParametersToGet ) {
 		return;
@@ -513,7 +513,7 @@ function processNumParameters( data ) {
 	}
 }
 
-function clearView() {
+function initView() {
   document.getElementById( "slot_algorithm_name" ).innerHTML = '<i>Add an algorithm...</i>';
   document.getElementById( "parameters" ).innerHTML = '';
 }
@@ -527,7 +527,7 @@ function getNextMapping() {
 	output.send( arr );
 	let dd = log( "sent mapping request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	nextMappingToGet += 1;
 	if ( nextMappingToGet >= numMappingsToGet ) {
 		return;
@@ -867,7 +867,7 @@ var sysExId ;
 if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
 // alert("saving in port");
     localStorage.setItem(dntMIDIInKey, defaultDntPortName);
-} 
+}
 else {
     dexInPortName = localStorage.getItem(dntMIDIInKey);
 // alert("retrieved in port name = " + dexInPortName);
@@ -876,7 +876,7 @@ else {
 if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
 // alert("saving out port name");
     localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
-} 
+}
 else {
     dexOutPortName = localStorage.getItem(dntMIDIOutKey);
 // alert("retrieved out port name = " + dexOutPortName);
@@ -885,7 +885,7 @@ else {
 if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
 alert("saving system exclusive ID");
     localStorage.setItem(dexSysExKey, 0);
-} 
+}
 else {
     sysExId = localStorage.getItem(dexSysExKey);
 // alert("retrieved system exclusive ID = " + sysExId);
@@ -952,13 +952,13 @@ function changeInput() {
 	input.onmidimessage = onMIDIMessage;
 
 	// Save the current port setting
-	let inputSelector = document.getElementById("midiinput"); 
+	let inputSelector = document.getElementById("midiinput");
 let selectedPortName = inputSelector.options[inputSelector.selectedIndex].text;
     localStorage.setItem(dntMIDIInKey, selectedPortName);
 }
 
 function changeOutput() {
-let outputSelector = document.getElementById("midioutput"); 
+let outputSelector = document.getElementById("midioutput");
 let selectedPortName = outputSelector.options[outputSelector.selectedIndex].text;
     localStorage.setItem(dntMIDIOutKey, selectedPortName);
     sendRTC = true;
@@ -1019,7 +1019,7 @@ function addAlgorithm() {
 }
 
 function changeSlot() {
-    clearView();
+    initView();
 	request();
 }
 
@@ -1080,40 +1080,40 @@ function onMIDIMessage(message) {
 function request() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 	let slot = document.getElementById( 'slot' ).value;
-	
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent algorithm names request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x41, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent preset name request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x48, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent unit strings request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, slot, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent num parameters request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x30, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent num algorithms request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	
+
 	mappingRefreshed = false;
 	if ( sendRTC ) {
 		sendRTC = false;
 		let d = Math.floor( Date.now() / 1000 );
 		let n = new Date( Date.now() );
 		d -= n.getTimezoneOffset() * 60;
-		var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x04, 
-			(d>>28)&0xf, (d>>21)&0x7f, (d>>14)&0x7f, (d>>7)&0x7f, (d>>0)&0x7f, 
+		var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x04,
+			(d>>28)&0xf, (d>>21)&0x7f, (d>>14)&0x7f, (d>>7)&0x7f, (d>>0)&0x7f,
 			0xF7 ];
 		output.send( arr );
 		var dd = log( "sent RTC update to disting NT" );
