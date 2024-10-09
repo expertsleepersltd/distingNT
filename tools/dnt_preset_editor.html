@@ -343,7 +343,7 @@ function processEnumStrings( data ) {
 		e.checked = v != 0;
 		e.style = 'display:inline;';
 	}
-	else {	
+	else {
 		var e = document.getElementById( "p" + p + "_e" );
 		e.innerHTML = str;
 		e.value = document.getElementById( "p" + p + "_s" ).value;
@@ -511,6 +511,10 @@ function processNumParameters( data ) {
 	if ( anyMappingVisible() ) {
 		requestMapping();
 	}
+}
+
+function clearView() {
+  document.getElementById( "parameters" ).innerHTML = '';
 }
 
 nextMappingToGet = 0;
@@ -777,7 +781,7 @@ function mapping_midi( p ) {
 	let flags = en | ( sym << 1 ) | ( ( ch & 0xf ) << 3 );
 	let min = document.getElementById( "p" + p + "_midi_min" ).value;
 	let max = document.getElementById( "p" + p + "_midi_max" ).value;
-	
+
 	if ( cc == 128 ) {
 		cc = 0;
 		flags |= (1<<2);
@@ -932,6 +936,7 @@ function onMIDISuccess(midiAccess) {
 
 	log( "midi access granted" );
     status("OK");
+    changeSlot();
 }
 function onMIDIFailure(e) {
 	log( "midi access failure" );
@@ -1009,9 +1014,11 @@ function addAlgorithm() {
 	output.send( arr );
 	let dd = log( "sent add algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
+	changeSlot();
 }
 
 function changeSlot() {
+    clearView();
 	request();
 }
 
