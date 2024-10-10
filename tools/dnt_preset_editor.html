@@ -151,6 +151,13 @@ for ( let i=0; i<32; ++i ) {
 <label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
 <label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x"></textarea>
 </p>
+<!--
+<button onclick='loadPreset()'>Load</button>
+<button onclick='newPreset()'>New</button>
+<button onclick='savePreset(0)'>Save (prompt)</button>
+<button onclick='savePreset(1)'>Save (safe)</button>
+<button onclick='savePreset(2)'>Save (force)</button>
+-->
 <label for="algorithms_menu">Algorithms:</label>
 <select id="algorithms_menu" onchange='changeAlgorithm()'></select>
 <label id='spec1label' for="spec1"></label>
@@ -1025,6 +1032,37 @@ function removeAlgorithm() {
 	let dd = log( "sent remove algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 	changeSlot();
+}
+
+function loadPreset() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let append = 0;
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x34, append ];
+	let name = "/presets/Aleatoric Piano.json";
+	for ( let i = 0; i < name.length; ++i ) {
+		arr.push( name.charCodeAt( i ) );
+	}
+	arr.push( 0x00 );
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent load preset request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function newPreset() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x35, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent new preset request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function savePreset( option ) {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x36, option, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent save preset request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 function changeSlot() {
