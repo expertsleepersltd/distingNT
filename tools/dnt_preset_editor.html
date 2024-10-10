@@ -172,6 +172,7 @@ for ( let i=0; i<32; ++i ) {
 <input id='mapping_name' accesskey='n' type='text' onchange='send_mapping_name()'>
 <p>
 <div id='slot_algorithm_name'></div>
+<button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
 <p>
 <div id='parameters'></div>
 
@@ -651,15 +652,13 @@ function requestParameterValueString( p ) {
 }
 
 function send_preset_name() {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x47, slot ];
-	var name = document.getElementById( "preset_name" ).value;
-	name += "                ";
-	name = name.substring( 0, 16 );
-	for ( var i = 0; i < 16; ++i ) {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x47 ];
+	let name = document.getElementById( "preset_name" ).value;
+	for ( let i = 0; i < name.length; ++i ) {
 		arr.push( name.charCodeAt( i ) );
 	}
+	arr.push( 0x00 );
 	arr.push( 0xF7 );
 	output.send( arr );
 	let dd = log( "sent preset name update to disting NT" );
@@ -1014,6 +1013,16 @@ function addAlgorithm() {
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x32, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent add algorithm request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	changeSlot();
+}
+
+function removeAlgorithm() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x33, slot, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent remove algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 	changeSlot();
 }
