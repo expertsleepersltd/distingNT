@@ -937,7 +937,15 @@ function onMIDISuccess(midiAccess) {
 
 	log( "midi access granted" );
     status("OK");
-    changeSlot();
+    initView();
+
+    // Set the slot number from the query string
+    let { slot } = getQueryParams();
+    if (slot){
+      document.getElementById('slot').value = Number(slot) - 1;
+    }
+
+    request();
 }
 function onMIDIFailure(e) {
 	log( "midi access failure" );
@@ -1130,6 +1138,19 @@ function sendMsg() {
 	output.send( arr );
 	var dd = log( "sent sysex (" + str.length + " bytes)" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function getQueryParams() {
+  const queryString = window.location.search; // Get the part after the "?"
+  const urlParams = new URLSearchParams(queryString);
+  const params = {};
+
+  // Iterate through all the query parameters
+  for (const [key, value] of urlParams.entries()) {
+    params[key] = value;
+  }
+
+  return params;
 }
 </script>
 
