@@ -157,6 +157,7 @@ for ( let i=0; i<32; ++i ) {
 <button onclick='savePreset(0)'>Save (prompt)</button>
 <button onclick='savePreset(1)'>Save (safe)</button>
 <button onclick='savePreset(2)'>Save (force)</button>
+<button onclick='moveAlgorithmUp()'>Move algorithm up</button>
 -->
 <label for="algorithms_menu">Algorithms:</label>
 <select id="algorithms_menu" onchange='changeAlgorithm()'></select>
@@ -1070,6 +1071,15 @@ function savePreset( option ) {
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x36, option, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent save preset request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function moveAlgorithmUp() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x37, slot, slot-1, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent move algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
