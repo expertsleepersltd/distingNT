@@ -165,6 +165,8 @@ for ( let i=0; i<32; ++i ) {
 <input id='spec1' type='number'></input>
 <label id='spec2label' for="spec2"></label>
 <input id='spec2' type='number'></input>
+<label id='spec3label' for="spec3"></label>
+<input id='spec3' type='number'></input>
 <button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
 <p>
 <label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
@@ -241,7 +243,7 @@ function processAlgorithmInfo( data ) {
 	}
 	factory.push( algSpecs );
 	let names = [];
-	for ( let j=0; j<3; ++j ) {
+	for ( let j=0; j<1+numSpecs; ++j ) {
 		let name = "";
 		for ( let i = 0; i < 32; ++i ) {
 			let n = data[c++];
@@ -989,27 +991,18 @@ function changeAlgorithm() {
 	let index = document.getElementById( 'algorithms_menu' ).value;
 	let factory = factories[ index ];
 	let numSpecs = factory[ 1 ];
-	if ( numSpecs > 0 ) {
-		document.getElementById( 'spec1label' ).innerHTML = factory[3][1] + ":";
-		let t = document.getElementById( 'spec1' );
-		t.min = factory[2][0][0];
-		t.max = factory[2][0][1];
-		t.value = factory[2][0][2];
-		t.style = 'display:inline;';
-	} else {
-		document.getElementById( 'spec1label' ).innerHTML = "";
-		document.getElementById( 'spec1' ).style='display:none;';
-	}
-	if ( numSpecs > 1 ) {
-		document.getElementById( 'spec2label' ).innerHTML = factory[3][2] + ":";
-		let t = document.getElementById( 'spec2' );
-		t.min = factory[2][1][0];
-		t.max = factory[2][1][1];
-		t.value = factory[2][1][2];
-		t.style = 'display:inline;';
-	} else {
-		document.getElementById( 'spec2label' ).innerHTML = "";
-		document.getElementById( 'spec2' ).style='display:none;';
+	for ( let i=0; i<3; ++i ) {
+		if ( numSpecs > i ) {
+			document.getElementById( 'spec' + (i+1) + 'label' ).innerHTML = factory[3][1+i] + ":";
+			let t = document.getElementById( 'spec' + (i+1) );
+			t.min = factory[2][i][0];
+			t.max = factory[2][i][1];
+			t.value = factory[2][i][2];
+			t.style = 'display:inline;';
+		} else {
+			document.getElementById( 'spec' + (i+1) + 'label' ).innerHTML = "";
+			document.getElementById( 'spec' + (i+1) ).style='display:none;';
+		}
 	}
 }
 
@@ -1018,15 +1011,14 @@ function addAlgorithm() {
 	let factory = factories[ index ];
 	let guid = factory[ 0 ];
 	let numSpecs = factory[ 1 ];
-	let specs = [ 0, 0 ];
-	if ( numSpecs > 0 ) {
-		specs[0] = document.getElementById( 'spec1' ).value;
-	}
-	if ( numSpecs > 1 ) {
-		specs[1] = document.getElementById( 'spec2' ).value;
+	let specs = [ 0, 0, 0 ];
+	for ( let i=0; i<3; ++i ) {
+		if ( numSpecs > i ) {
+			specs[i] = document.getElementById( 'spec' + (i+1) ).value;
+		}
 	}
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x32, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x32, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, (specs[2]>>14)&3, (specs[2]>>7)&0x7f, specs[2]&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent add algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
