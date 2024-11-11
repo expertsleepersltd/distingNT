@@ -59,6 +59,38 @@ div.pv_string {
 	height:1px;
 	overflow:hidden;
 }
+th.routingI {
+	text-align: center;
+	width: 2em;
+	background-color: #c0c0c0;
+}
+th.routingO {
+	text-align: center;
+	width: 2em;
+	background-color: #e0e0e0;
+}
+th.routingA {
+	text-align: center;
+	width: 2em;
+	background-color: #c0c0c0;
+}
+td.routing {
+	text-align: center;
+}
+td.routingL {
+	text-align: center;
+    border-left: thin;
+    border-left-style: dashed;
+    border-color: #808080;
+}
+td.routingSlotName {
+	text-align: center;
+	background-color: #f0f0f0;
+	white-space: nowrap;
+}
+td.routingSlot {
+	text-align: center;
+}
 </style>
 
 <script>
@@ -124,7 +156,7 @@ At the time of writing this will work only in Google's <a href="http://www.googl
 <p>
 
 <!--<button  accesskey="s" onclick="sendMsg()">Send Msg</button>-->
-<button class="big"  accesskey="r" onclick="request()">Refresh</button>
+<button class="big"  accesskey="r" onclick="refresh()">Refresh</button>
 <label for="midioutput">Send to MIDI port:</label>
 <select id="midioutput"  onchange='changeOutput()' accesskey="o"></select>
 <label for="midiinput">Listen on MIDI port: </label>
@@ -151,6 +183,13 @@ for ( let i=0; i<32; ++i ) {
 <label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
 <label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x"></textarea>
 </p>
+
+<button class="big" onclick="showSlotEditor()">Edit parameters</button>
+<button class="big" onclick="showRoutingAnalysis()">Show routing</button>
+<hr>
+
+<div id=slotEditor>
+
 <!--
 <button onclick='loadPreset()'>Load</button>
 <button onclick='newPreset()'>New</button>
@@ -178,21 +217,70 @@ for ( let i=0; i<32; ++i ) {
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
 <br>
 <label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
-<label for="mapping_name">Mapping name:</label>
-<input id='mapping_name' accesskey='n' type='text' onchange='send_mapping_name()'>
 <p>
 <div id='slot_algorithm_name'></div>
 <button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
 <p>
 <div id='parameters'></div>
 
+</div> <!--slotEditor-->
+
+<div id=routingAnalysis>
+
+<label for="show_signals">Show signals:</label><input id='show_signals' type='checkbox' onchange="buildRoutingInfo()" checked>
+<label for="show_mappings">Show mappings:</label><input id='show_mappings' type='checkbox' onchange="buildRoutingInfo()" checked>
+<label for="routing_colour1">Colour 1:</label><input id='routing_colour1' type='color' onchange='buildRoutingInfo()'>
+<label for="routing_colour2">Colour 2:</label><input id='routing_colour2' type='color' onchange='buildRoutingInfo()'>
+
+<div id=routingAnalysisContent></div>
+
+</div> <!--routingAnalysis-->
+
 <script>
-function processAlgorithm( data ) {
-	let guid = data.slice( 0, 4 );
+const dntRoutingColour1Key = "dntRoutingColour1";
+const dntRoutingColour2Key = "dntRoutingColour2";
+
+if ( !localStorage.getItem( dntRoutingColour1Key ) ) {
+    localStorage.setItem( dntRoutingColour1Key, "#b3fff0" );
+}
+if ( !localStorage.getItem( dntRoutingColour2Key ) ) {
+    localStorage.setItem( dntRoutingColour2Key, "#d9ffb3" );
+}
+document.getElementById( 'routing_colour1' ).value = localStorage.getItem( dntRoutingColour1Key );
+document.getElementById( 'routing_colour2' ).value = localStorage.getItem( dntRoutingColour2Key );
+
+var routingAnalysisMode = false;
+function showSlotEditor() {
+	routingAnalysisMode = false;
+	document.getElementById( "routingAnalysis" ).style.display = "none";
+	request();
+	document.getElementById( "slotEditor" ).style.display = "inline";
+}
+function showRoutingAnalysis() {
+	routingAnalysisMode = true;
+	document.getElementById( "slotEditor" ).style.display = "none";
+	requestRouting();
+	document.getElementById( "routingAnalysis" ).style.display = "inline";
+}
+document.getElementById( "routingAnalysis" ).style.display = "none";
+
+function lookupGuid( guid ) {
 	for ( let i=0; i<numAlgorithms; ++i ) {
 		if ( guid[0] == factories[i][0][0] && guid[1] == factories[i][0][1] && guid[2] == factories[i][0][2] && guid[3] == factories[i][0][3] ) {
-			document.getElementById( "slot_algorithm_name" ).innerHTML = factories[i][3][0];
-			break;
+			return i;
+		}
+	}
+	return -1;
+}
+
+function processAlgorithm( slot, data ) {
+	let guid = data.slice( 0, 4 );
+	let f = lookupGuid( guid );
+	if ( f >= 0 ) {
+		if ( routingAnalysisMode ) {
+			guids[ slot ] = f;
+		} else {
+			document.getElementById( "slot_algorithm_name" ).innerHTML = factories[f][3][0];
 		}
 	}
 }
@@ -272,6 +360,218 @@ function processAlgorithmInfo( data ) {
 		let dd = log( "sent algorithm request to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
 	}
+}
+
+var slotCount = 0;
+var routingInfo = [];
+var guids = [];
+
+function processSlotCount( data ) {
+	slotCount = data[0];
+	routingInfo = [];
+	guids = [];
+
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	for ( let i=0; i<slotCount; ++i ) {
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, i, 0xF7 ];
+		output.send( arr );
+		arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x61, i, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent routing request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+}
+
+function processRoutingInfo( data ) {
+	let slot = data[0];
+	if ( slot >= slotCount ) {
+		return;
+	}
+	let routing = [];
+	let c = 1;
+	for ( let i=0; i<6; ++i ) {
+		let d = data[c+0] | ( data[c+1] << 7 ) | ( data[c+2] << 14 ) | ( data[c+3] << 21 ) | ( data[c+4] << 28 );
+		c += 5;
+		routing.push( d );
+	}
+	routingInfo[ slot ] = routing;
+	
+	if ( slot == ( slotCount - 1 ) ) {
+		buildRoutingInfo();
+	}
+}
+
+function netInputMask( r ) {
+    let inputMask = r[0];
+	let mappingMask = r[5];
+	let showSignals = document.getElementById( 'show_signals' ).checked;
+	let showMappings = document.getElementById( 'show_mappings' ).checked;
+	if ( showSignals && showMappings ) {
+		return inputMask | mappingMask;
+	} else if ( showSignals ) {
+		return inputMask;
+	} else if ( showMappings ) {
+		return mappingMask;
+	}
+	return 0;
+}
+
+function hex2( d ) {
+	let r = Number( d.toFixed(0) ).toString(16);
+	if ( r.length == 1 ) {
+		r = '0' + r;
+	}
+	return r;
+}
+
+function darken( c ) {
+	let p = 0.9;
+	let r = parseInt( c.substring(1,3), 16 ) * p;
+	let g = parseInt( c.substring(3,5), 16 ) * p;
+	let b = parseInt( c.substring(5,7), 16 ) * p;
+	let h = '#';
+	h += hex2( r );
+	h += hex2( g );
+	h += hex2( b );
+	return h;
+}
+
+function buildRoutingInfo() {
+	let colour1 = document.getElementById( 'routing_colour1' ).value;
+	let colour2 = document.getElementById( 'routing_colour2' ).value;
+    localStorage.setItem( dntRoutingColour1Key, colour1 );
+    localStorage.setItem( dntRoutingColour2Key, colour2 );
+
+	// follow signals from top to bottom
+	let signals = [ [0, 1,1,1,1,1,1,1,1,1,1,1,1, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0] ];
+	for ( let s=0; s<slotCount; ++s ) {
+		let r = routingInfo[ s ];
+		let inputMask = netInputMask( r );
+		let outputMask = r[1];
+		let replaceMask = r[2];
+		let row = signals[ signals.length - 1 ];
+		let newRow = [ 0 ];
+		for ( let i=1; i<=28; ++i ) {
+			let v = row[i];
+			if ( outputMask & (1<<i) ) {
+				if ( replaceMask & (1<<i) ) {
+					v = v + 1;
+					if ( v > 2 ) {
+						v = 1;
+					}
+				} else if ( v == 0 ) {
+					v = 1;
+				}
+			}
+			newRow.push( v );
+		}
+		signals.push( newRow );
+	}
+	
+	// strip signals that go nowhere
+	let showSignals = document.getElementById( 'show_signals' ).checked;
+	for ( let i=1; i<=28; ++i ) {
+		if ( showSignals && ( i == 13 ) ) {
+			i = 21;
+		}
+		let hasInput = false;
+		for ( let s=slotCount; s>=0; s-- ) {
+			if ( s < slotCount ) {
+				let r = routingInfo[ s ];
+				let inputMask = netInputMask( r );
+				let replaceMask = r[2];
+				if ( replaceMask & (1<<i) ) {
+					hasInput = false;
+				}
+				if ( inputMask & (1<<i) ) {
+					hasInput = true;
+				}
+			}
+			if ( !hasInput ) {
+				signals[ s ][ i ] = 0;
+			}
+		}
+	}
+
+	let str = "<table class='routing'>";
+	let heading = "<tr class='routing'><th colspan=2 />";
+	for ( let i=0; i<28; ++i ) {
+		let ch = 1 + i;
+		let cl = "routingI";
+		if ( ch > 12 ) {
+			ch -= 12;
+			cl = "routingO";
+			if ( ch > 8 ) {
+				ch -= 8;
+				cl = "routingA";
+			}
+		}
+		heading += "<th class='" + cl + "'>" + ch + "</th>";
+	}
+	heading += "</tr>";
+	let heading2 = "<tr class='routing'><th colspan=2 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=8>Aux</th></tr>";
+	str += heading2;
+	str += heading;
+	let colours = [ "#ffffff", colour1, colour2, "#fcfcfc", darken( colour1 ), darken( colour2 ) ];
+	for ( let s=0; s<slotCount; ++s ) {
+		let r = routingInfo[ s ];
+		let inputMask = netInputMask( r );
+		let outputMask = r[1];
+		let replaceMask = r[2];
+		let effectiveInput = inputMask | ( outputMask & ~replaceMask );
+		let row = signals[ s ];
+		str += "<tr class='routing'><td /><td />";
+		for ( let i=1; i<=28; ++i ) {
+			let ch = i;
+			if ( ch > 12 ) {
+				ch -= 12;
+				if ( ch > 8 ) {
+					ch -= 8;
+				}
+			}
+			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
+			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( effectiveInput & (1<<i) ) ? "&darr;" : "&nbsp;" ) + "</td>";
+		}
+		str += "</tr>";
+		str += "<tr class='routingSlot'>";
+		str += "<td class='routingSlotName'>" + (s+1) + "</td>";
+		str += "<td class='routingSlotName'>" + factories[ guids[s] ][3][0] + "</td>";
+		let used = r[0] | r[5] | outputMask;
+		for ( let i=1; i<=28; ++i ) {
+			let ch = i;
+			if ( ch > 12 ) {
+				ch -= 12;
+				if ( ch > 8 ) {
+					ch -= 8;
+				}
+			}
+			let sty = "background-color:" + ( ( used & (1<<i) ) ? "#d0d0d0" : ( row[i] ? colours[ row[i] + 3*(i&1) ] : "#f0f0f0" ) );
+			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( used & (1<<i) ) ? ch : "&nbsp;" ) + "</td>";
+		}
+		str += "</tr>";
+		row = signals[ s+1 ];
+		str += "<tr class='routing'><td /><td />";
+		for ( let i=1; i<=28; ++i ) {
+			let ch = i;
+			if ( ch > 12 ) {
+				ch -= 12;
+				if ( ch > 8 ) {
+					ch -= 8;
+				}
+			}
+			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
+			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
+			let replace = replaceMask & (1<<i);
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( outputMask & (1<<i) ) ? ( replace ? "&#9523;" : "+" ) : "&nbsp;" ) + "</td>";
+		}
+		str += "</tr>";
+	}
+	str += heading;
+	str += heading2;
+	str += "</table>";
+	document.getElementById( 'routingAnalysisContent' ).innerHTML = str;
 }
 
 function showMappings( n ) {
@@ -622,8 +922,8 @@ function processAllParameterValues( data ) {
 }
 
 function processParameterValue( data ) {
-	let p = extractShort( data.slice( 1, 4 ) );
-	let v = extractShort( data.slice( 4, 7 ) );
+	let p = extractShort( data.slice( 0, 3 ) );
+	let v = extractShort( data.slice( 3, 6 ) );
     document.getElementById( "p" + p + "_v" ).value = v;
     document.getElementById( "p" + p + "_s" ).value = v;
     document.getElementById( "p" + p + "_e" ).value = v;
@@ -633,7 +933,7 @@ function processParameterValue( data ) {
 function processParameterValueString( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let name = "";
-	for ( let i = 0; i < 22; ++i ) {
+	for ( let i = 0; i < 32; ++i ) {
 		let n = data[3+i];
 		if ( n == 0 ) {
 			break;
@@ -646,7 +946,7 @@ function processParameterValueString( data ) {
 function requestParameterValue( p ) {
 	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x45, slot, p, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x45, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent parameter value request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -672,22 +972,6 @@ function send_preset_name() {
 	arr.push( 0xF7 );
 	output.send( arr );
 	let dd = log( "sent preset name update to disting NT" );
-	dumpSysex( arr, "txSysex", dd+"\n" );
-}
-
-function send_mapping_name() {
-	let slot = document.getElementById( 'slot' ).value;
-	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4C, slot ];
-	let name = document.getElementById( "mapping_name" ).value;
-	name += "                ";
-	name = name.substring( 0, 16 );
-	for ( var i = 0; i < 16; ++i ) {
-		arr[6+i] = name.charCodeAt( i );
-	}
-	arr.push( 0xF7 );
-	output.send( arr );
-	let dd = log( "sent mapping name update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
@@ -868,36 +1152,25 @@ var dexInPortName = defaultDntPortName;
 var dexOutPortName = defaultDntPortName;
 var sysExId ;
 
-// debugging only:
-// localStorage.removeItem(dntMIDIInKey);
-// localStorage.removeItem(dntMIDIOutKey);
-// localStorage.removeItem(dexSysExKey);
-
 if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
-// alert("saving in port");
     localStorage.setItem(dntMIDIInKey, defaultDntPortName);
 }
 else {
     dexInPortName = localStorage.getItem(dntMIDIInKey);
-// alert("retrieved in port name = " + dexInPortName);
 }
 
 if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
-// alert("saving out port name");
     localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
 }
 else {
     dexOutPortName = localStorage.getItem(dntMIDIOutKey);
-// alert("retrieved out port name = " + dexOutPortName);
 }
 
 if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
-alert("saving system exclusive ID");
     localStorage.setItem(dexSysExKey, 0);
 }
 else {
     sysExId = localStorage.getItem(dexSysExKey);
-// alert("retrieved system exclusive ID = " + sysExId);
 }
 
 var sendRTC = true;
@@ -1097,8 +1370,8 @@ function onMIDIMessage(message) {
 	} else if ( data[6] == 0x31 ) {
 		processAlgorithmInfo( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x40 ) {
-		if ( rxSlot == slot ) {
-			processAlgorithm( data.slice( 8, -1 ) );
+		if ( routingAnalysisMode || ( rxSlot == slot ) ) {
+			processAlgorithm( rxSlot, data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x41 ) {
     	processPresetName( data.slice( 7, -1 ) );
@@ -1132,6 +1405,17 @@ function onMIDIMessage(message) {
 		if ( rxSlot == slot ) {
 			processParameterValueString( data.slice( 8, -1 ) );
 		}
+	} else if ( data[6] == 0x60 ) {
+		processSlotCount( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x61 ) {
+		processRoutingInfo( data.slice( 7, -1 ) );
+	}
+}
+function refresh() {
+	if ( routingAnalysisMode ) {
+		requestRouting();
+	} else {
+		request();
 	}
 }
 function request() {
@@ -1176,6 +1460,13 @@ function request() {
 		var dd = log( "sent RTC update to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
 	}
+}
+function requestRouting() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x60, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent slot count request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 function sendMsg() {
 	var str = makeMsgSysEx();
