@@ -6,6 +6,7 @@
 "pot2": "Pot 2",
 "pot3": "Pot 3",
 "description": "Begin distorting signal at -18dB (input referred). At the output, the signal will begin to distort at half of full scale, and further increase of input signal will cause increasingly 'flattened' signal peaks.",
+"code_size": 207,
 "code":[
 ":10000000F6EE007A90ED0A0A90ED097A2C4B20EE7C"
 ,":10001000270AC0F88430A7EE270AB4EE007A10B59C"

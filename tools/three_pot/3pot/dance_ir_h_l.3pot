@@ -1,11 +1,12 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "spn/dance_ir_h_l",
-"pot1": "Pot 1",
-"pot2": "Pot 2",
-"pot3": "Pot 3",
+"name": "Disco filter",
+"pot1": "Reverb",
+"pot2": "High pass filter",
+"pot3": "Low pass filter",
 "description": "",
+"code_size": 1115,
 "code":[
 ":1000000038B52DED068B9FEDFA8AF6EE008A90ED5D"
 ,":10001000067A0446F0EE487A9FEDF66AF0EE476AFB"

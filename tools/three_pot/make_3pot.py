@@ -41,8 +41,21 @@ try:
 except FileNotFoundError:
 	pass
 
+def computeCodeSize( lines ):
+	size = 0
+	for line in lines:
+		bits = line.split( ':' )
+		if len(bits) < 2:
+			continue
+		data = bits[1]
+		count = int( data[0:2], 16 )
+		address = int( data[2:6], 16 )
+		size = max( size, address + count - 1 )
+	return size
+
 with open( filename, 'r' ) as F:
 	lines = F.readlines()
+	size = computeCodeSize( lines )
 	lines = [ '\"' + l.strip() + '\"\n' for l in lines ]
 	print( '{\n"kind": "disting NT 3pot",' )
 	print( '"version": 1,' )
@@ -51,6 +64,7 @@ with open( filename, 'r' ) as F:
 	print( '"pot2": "' + docs[2] + '",' )
 	print( '"pot3": "' + docs[3] + '",' )
 	print( '"description": "' + docs[4] + '",' )
+	print( f'"code_size": {size},' )
 	print( '"code":[' )
 	print( ','.join( lines ) )
 	print( ']' )

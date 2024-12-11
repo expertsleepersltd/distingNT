@@ -1,0 +1,4 @@
+Disco filter
+Reverb
+High pass filter
+Low pass filter
