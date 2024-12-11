@@ -1,0 +1,3 @@
+[submodule "tools/spn_to_c"]
+	path = tools/spn_to_c
+	url = https://github.com/expertsleepersltd/spn_to_c.git
