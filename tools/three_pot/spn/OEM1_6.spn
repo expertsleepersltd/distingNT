@@ -1,0 +1,129 @@
+;OEM1_6 Flanger
+
+;pot0 = delay
+;pot1 = sweep width
+;pot2 = sweep rate
+
+;memory declarations:
+
+mem	fdel	10000
+
+;register declarations:
+
+equ	pointer	reg0
+equ	temp	reg1
+equ	fla1	reg2
+equ	fla2	reg3
+equ	interp	reg4
+equ	pfil	reg5
+equ	fout	reg6
+equ	small	reg7
+
+;The flanger produces a swept delay that approaches zero delay
+
+;with the sweep width control (pot1) at zero, the delay control
+;can be used to manually control the effect.
+
+;maximum effect is produced when the effect is driven from a pre-fader
+;send; the effect entirely from the FV-1
+
+;mono input, mono output.
+
+;put inputs into delay:
+
+rdax	adcl,0.25
+rdax	adcr,0.25
+rdax	fout,0.75
+wra	fdel,0
+
+;initialize ramp 0:
+
+skp	run,1
+wldr	rmp0,0,4096
+
+;create a small offset value:
+
+clr
+or	%00000000_00001000_00000000
+wrax	small,0
+
+;set up triangle wave generator to modulate ramp0 LFO:
+
+rdax	pot2,1
+mulx	pot2
+mulx	pot2
+sof	0.4,0.002
+wrax	rmp0_rate,0
+
+;now get ramp pointer, and turn into a triangle wave, 
+;all positive, and scale with pot1:
+
+cho 	rdal,rmp0	;should range 0 to 0.5, a ramp
+sof	1,-0.25		;subtract 1/4 from the 0 to 1/2 result
+absa			;make absolute; now 0 to 0.25
+mulx	pot1		;scale by pot 1 for width control
+
+;and add pot0 as base delay pointer:
+
+rdax	pot0,0.25
+sof	0.03125,0	;scale result to proper delay range
+
+;now filter the signal to make more sine-like at high frequencies:
+
+rdfx	pfil,0.001
+wrax	pfil,1
+rdax	small,1
+wrax	pointer,1	;save pointer, keep in ACC
+
+;now get output from flanger delay, interpolating result of two reads:
+
+wrax	addr_ptr,0
+rmpa	1
+wrax	fla1,0		;save first read
+
+;now get next read point:
+
+or	%00000000_00000001_00000000	;add 1 to address
+rdax	pointer,1
+wrax	addr_ptr,0
+rmpa	1
+wrax	fla2,0		;save second read
+
+;now derive an interpolation coefficient from LSBs of pointer:
+
+rdax	pointer,1
+and	%00000000_00000000_11111111
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	1.9999,0
+wrax	interp,0
+
+;now interpolate between the two adjacent delay taps:
+
+rdax	fla2,1
+rdax	fla1,-1
+mulx	interp		;crossfade with interp
+rdax	fla1,1
+wrax	fout,1
+wrax	dacl,1		;write delay output to DACs
+wrax	dacr,0
+
+
+
+
+
+
+
+

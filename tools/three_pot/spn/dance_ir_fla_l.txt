@@ -1,0 +1,10 @@
+Disco flange
+Reverb
+Flange
+Lowpass
+;pot0 controls reverb time, but also affects input drive level;
+;reveb time is moderate up to about mid position, then increases
+;to infinity (or nearly) at full position.
+;input drive is constant, but decreases at the full pot0 position.
+;output mix is varied over the first half of pot0, then remains
+;high to the end of pot0's range.

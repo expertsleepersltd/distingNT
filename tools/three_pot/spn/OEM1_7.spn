@@ -1,0 +1,226 @@
+;OEM1_7 Chorus
+
+;pot0 = Depth (number of chorus elements)
+;pot1 = Width (of delay sweep)
+;pot2 = Rate (of sweep)
+
+;memory declarations:
+
+mem	cdel	20000
+
+;register declarations:
+
+equ	temp	reg0
+equ	c1	reg1
+equ	c2	reg2
+equ	c3	reg3
+equ	c4	reg4
+equ	c5	reg5
+equ	c6	reg6
+equ	c7	reg7
+equ	c8	reg8
+equ	wfil	reg9
+equ	wred	reg10
+equ	gain	reg11
+
+;constant declarations:
+
+equ	d1	1003
+equ	d2	1402
+equ	d3	1850
+equ	d4	2123
+equ	d5	2470
+equ	d6	3831
+equ	d7	3350
+equ	d8	3506
+
+;write inputs to delay:
+
+rdax	adcl,0.2
+rdax	adcr,0.2
+wra	cdel,0
+
+;establish two sine oscillators: 
+;rate based on rate control: 
+
+rdax	pot2,1
+mulx	pot2
+sof	0.02,0.002
+wrax	sin0_rate,0.8
+wrax	sin1_rate,0
+
+;establish widht reduction based on rate:
+
+
+;width based on width control:
+
+rdax	pot1,1
+rdfx	wfil,0.01
+wrax	wfil,0.08		;set overall max range to +/-1000 elements
+wrax	sin0_range,1.25
+wrax	sin1_range,0
+
+;create 8 chorus outputs:
+
+cho	rda,sin0,reg|compc,cdel+d1
+cho	rda,sin0,0,cdel+d1+1
+wrax	c1,0			;write chorus result to register
+
+cho	rda,sin1,reg|compc,cdel+d2
+cho	rda,sin1,0,cdel+d2+1
+wrax	c2,0	
+	
+cho	rda,sin0,cos|reg|compc,cdel+d3
+cho	rda,sin0,cos,cdel+d3+1
+wrax	c3,0	
+	
+cho	rda,sin1,cos|reg|compc,cdel+d4
+cho	rda,sin1,cos,cdel+d4+1
+wrax	c4,0	
+	
+cho	rda,sin0,reg|compa,cdel+d5
+cho	rda,sin0,compc|compa,cdel+d5+1
+wrax	c5,0	
+	
+cho	rda,sin1,reg|compa,cdel+d6
+cho	rda,sin1,compc|compa,cdel+d6+1
+wrax	c6,0	
+	
+cho	rda,sin0,cos|reg|compa,cdel+d7
+cho	rda,sin0,cos|compc|compa,cdel+d7+1
+wrax	c7,0	
+	
+cho	rda,sin1,cos|reg|compa,cdel+d8
+cho	rda,sin1,cos|compc|compa,cdel+d8+1
+wrax	c8,0
+		
+;create a gain variable to affect outputs as elements are added:
+
+rdax	pot0,1
+sof	-0.5,0.99	;function ranges 1.0 to 0.5
+wrax	gain,0
+
+;now cleverly combine these chorus values, based on pot0:
+
+rdax	pot0,1
+and	%01110000_00000000_00000000	;mask upper 3 bits
+skp	zro,ls1
+sof	1,-1/8
+skp	zro,ls2
+sof	1,-1/8
+skp	zro,ls3
+sof	1,-1/8
+skp	zro,ls4
+sof	1,-1/8
+skp	zro,ls5
+sof	1,-1/8
+skp	zro,ls6
+sof	1,-1/8
+skp	zro,ls7
+sof	1,-1/8
+skp	zro,ls8
+
+ls1:
+
+rdax	c1,-0.5		;move c1 to mono
+
+ls2:
+
+rdax	c3,-0.5		;remove c3
+
+ls3:
+
+rdax	c4,-0.5		;remove c4
+
+ls4:
+
+rdax	c5,-0.5		;remove c5
+rdax	c3,0.5		;move c3 to mono
+rdax	c4,0.5		;move c4 to mono
+
+ls5:
+
+rdax	c6,-0.5		;remove c6
+
+ls6:
+	
+rdax	c7,-0.5		;remove c7
+rdax	c5,-0.5		;lower c5 level
+rdax	c6,0.5		;add c6 to mono	
+
+ls7:
+
+rdax	c8,-0.5		;remove c8 from mix
+
+ls8:
+
+rdax	c1,1
+rdax	c3,1
+rdax	c5,1
+rdax	c7,0.5
+rdax	c8,0.5
+mulx	gain
+sof	1.99,0
+wrax	dacl,0		;write outputs
+
+
+rdax	pot0,1
+and	%01110000_00000000_00000000	;mask upper 3 bits
+skp	zro,rs1
+sof	1,-1/8
+skp	zro,rs2
+sof	1,-1/8
+skp	zro,rs3
+sof	1,-1/8
+skp	zro,rs4
+sof	1,-1/8
+skp	zro,rs5
+sof	1,-1/8
+skp	zro,rs6
+sof	1,-1/8
+skp	zro,rs7
+sof	1,-1/8
+skp	zro,rs8
+
+rs1:
+
+rdax	c2,-0.5
+rdax	c1,0.5
+
+rs2:
+
+rdax	c3,-0.5
+
+rs3:
+
+rdax	c4,-0.5
+
+rs4:
+
+rdax	c5,-0.5
+rdax	c4,-0.5
+
+rs5:
+
+rdax	c6,-0.5		;remove c6
+
+rs6:
+
+rdax	c7,-0.5		;remove c7
+rdax	c5,0.5		;move c5 to mono
+rdax	c6,-0.5		;move c6 to mono		
+
+rs7:
+
+rdax	c8,-0.5		;remove c8 from mix
+
+rs8:
+rdax	c2,1
+rdax	c4,1
+rdax	c6,1
+rdax	c7,0.5
+rdax	c8,0.5
+mulx	gain
+sof	1.99,0
+wrax	dacr,0		;write outputs
+

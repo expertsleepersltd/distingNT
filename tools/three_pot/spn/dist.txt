@@ -1,0 +1,5 @@
+Distortion
+
+
+
+Begin distorting signal at -18dB (input referred). At the output, the signal will begin to distort at half of full scale, and further increase of input signal will cause increasingly 'flattened' signal peaks.

@@ -1,0 +1,214 @@
+;OEM1_3 Plate reverb
+
+;pot0 = reverb decay time
+;pot1 = predelay (0-100mS at Fs=46KHz)
+;pot2 = damping, increases with clockwise rotation
+
+;The plate program exhibits very high initial density, providing an immediate
+;and explosive initial sound.
+
+;The frequency response is quite colorful, which may threaten feedback
+;in PA applications.
+
+;the algorithm incorporates variable predelay to give better clarity to the 
+;initial sound.
+
+;Vibrato is added within the reverb delay elements to smooth the decay.
+
+;Input is expected to be mono, from single effects send, output is placed stereo.
+
+mem	pdel	4600
+mem	iap1	156
+mem	iap2	223
+mem	iap3	332
+mem	iap4	448
+;
+mem	ap1	783
+mem	ap1b	1231
+mem	ap1c	1451
+mem	ap2	643
+mem	ap2b	943
+mem	ap2c	1143
+mem	ap3	582
+mem	ap3b	781
+mem	ap3c	981
+mem	ap4	374
+mem	ap4b	582
+mem	ap4c	1182
+;
+mem	del1	1559
+mem	del2	1945
+mem	del3	1676
+mem	del4	2445
+
+equ 	temp	reg0
+equ	hpfin	reg1
+equ	lpf1	reg2
+equ	lpf2	reg3
+equ	lpf3	reg4
+equ	lpf4	reg5
+equ	rt	reg6
+equ	iapout	reg7
+equ	pdelo	reg8
+
+;constants:
+
+equ	kfh	0.1
+equ	kfl	0.6
+equ	kiap	0.65
+equ	klap	0.6
+
+;prepare decay time pot:
+
+rdax	pot0,1
+sof	0.4,0.5
+wrax	rt,0			;rt ranges 0.5 to 0.9
+
+;do variable predelay:
+
+skp	run,1
+wldr	rmp0,0,4096		;initialize predelay
+
+rdax	adcl,0.5		;put inputs into predelay
+rdax	adcr,0.5
+rdfx	hpfin,kfh
+wrhx	hpfin,-1		;remove lower end (plate characteristic)
+wra	pdel,0
+
+cho	rda,rmp0,reg|compc,pdel	;get outputs from predelay, interpolated
+cho	rda,rmp0,0,pdel+1
+wrax	pdelo,0			;write predelay output to register
+
+cho	rdal,rmp0		;read current predelay pointer
+rdax	pot1,-0.5		;subtract pot for servo control of pointer
+wrax	rmp0_rate,0		;maintain predelay pointer
+
+;now run predelayed signal into 4 all passes:
+
+rdax	pdelo,0.25		;attenuate signal to avoid clipping	
+rda	iap1#,kiap	
+wrap	iap1,-kiap		
+rda	iap2#,kiap	
+wrap	iap2,-kiap		
+rda	iap3#,kiap	
+wrap	iap3,-kiap		
+rda	iap4#,kiap	
+wrap	iap4,-kiap		
+wrax	iapout,0		;write to register for ring injection
+
+;now do reverb ring, use temp as reg for filtering:
+
+;aps into delay1:
+
+rda	del4#,1		;read previous delay	
+mulx	rt		;multiply by reverb time coefficient
+rdax	iapout,1	;read left input from input allpass filter bank
+rda	ap1#,klap	;do an allpass filter
+wrap	ap1,-klap
+rda	ap1b#,klap	;do second all pass filter
+wrap	ap1b,-klap	
+rda	ap1c#,klap	;do third all pass filter
+wrap	ap1c,-klap	
+wrax	temp,1		;write to temp, keep in acc
+rdfx	lpf1,kfl	;low pass filter
+wrlx	lpf1,-1
+rdax	temp,-1
+mulx	pot2		;crossfade between filter and no filter
+rdax	temp,1
+wra	del1,0		;write to next delay, clear accumulator
+
+;aps into delay2:
+
+rda	del1#,1		
+mulx	rt
+rdax	iapout,1
+rda	ap2#,klap	
+wrap	ap2,-klap		
+rda	ap2b#,klap	
+wrap	ap2b,-klap	
+rda	ap2c#,klap	
+wrap	ap2c,-klap		
+wrax	temp,1		
+rdfx	lpf2,kfl
+wrlx	lpf2,-1
+rdax	temp,-1
+mulx	pot2
+rdax	temp,1
+wra	del2,0		
+
+;aps into delay3:
+
+rda	del2#,1		
+mulx	rt
+rdax	iapout,1		
+rda	ap3#,klap	
+wrap	ap3,-klap		
+rda	ap3b#,klap	
+wrap	ap3b,-klap
+rda	ap3c#,klap	
+wrap	ap3c,-klap		
+wrax	temp,1		
+rdfx	lpf3,kfl
+wrlx	lpf3,-1
+rdax	temp,-1
+mulx	pot2
+rdax	temp,1	
+wra	del3,0
+
+;aps into delay4:
+
+rda	del3#,1.0		
+mulx	rt
+rdax	iapout,1
+rda	ap4#,klap	
+wrap	ap4,-klap		
+rda	ap4b#,klap	
+wrap	ap4b,-klap
+rda	ap4c#,klap	
+wrap	ap4c,-klap		
+wrax	temp,1		
+rdfx	lpf4,kfl
+wrlx	lpf4,-1
+rdax	temp,-1
+mulx	pot2
+rdax	temp,1	
+wra	del4,0		
+
+;take outputs as taps from reverb ring:
+
+rda	del1,1.5
+rda	del2+334,1.2
+rda	del3+2093,0.8
+rda	del4+1793,1			
+wrax	dacl,0		;write output, clear accumulator
+	
+rda	del1,0.8	
+rda	del2+923,1.2
+rda	del3,1.5
+rda	del4+2267,1
+wrax	dacr,0	
+
+;set up lfo, 1Hz to 2Hz, +/-100 samples, for smearing loop all passes:
+
+skp	run,2
+wlds	sin0,45,50
+wlds	sin1,53,50
+
+;smear 4 allpass filters in reverb ring:
+
+cho 	rda,sin0,reg|compc,ap1+50	;sin0
+cho	rda,sin0,0,ap1+51
+wra	ap1+100,0
+
+cho 	rda,sin0,cos|compc,ap2+50	;cos0
+cho	rda,sin0,cos,ap2+51	
+wra	ap2+100,0
+
+cho 	rda,sin1,reg|compc,ap3+50	;sin1
+cho	rda,sin1,0,ap3+51
+wra	ap3+100,0
+
+cho 	rda,sin1,cos|compc,ap4+50	;cos1
+cho	rda,sin1,cos,ap4+51	
+wra	ap4+100,0
+

@@ -1,0 +1,103 @@
+;OEM1_5 Echo
+
+;pot0 = Repeat feedback
+;pot1 = Delay time
+;pot2 = Repeat damping
+
+;The echo program allows a mono input to produce a mono output,
+;delayed and repeated.
+
+;The rather long delay can be used for dramatic performance effects,
+;but at shorter delay settings, karaoke-style reverb is obtained.
+
+;The delay is variable from 50 to 700mS (Fs=46KHz) 
+;and depends on crystal frequency
+
+mem	delay	32767
+
+equ	pfil1	reg0
+equ	pfil2	reg1
+equ	nxtadd	reg2
+equ	interp	reg3
+equ	lpf	reg4
+equ	temp	reg5
+equ	dout1	reg6
+equ	dout2	reg7
+equ	fbk	reg8
+
+;read inputs, add to feedback and write to delay:
+
+rdax	fbk,1		;read feedback value
+mulx	pot0		;scale by pot0 value for feedback control
+rdax	adcl,0.5	;read and add inputs	
+rdax	adcr,0.5
+wra	delay,0		;write result to delay
+
+;prepare read pointer based on pot1 setting:
+
+rdax	pot1,1		;read pot value
+sof	0.93,0.07	;limit delay range
+rdfx	pfil1,0.001	;filter pot value
+wrax	pfil1,1		;write filter register, keep in ACC
+rdfx	pfil2,0.001
+wrax	pfil2,1
+wrax	addr_ptr,0	;load address pointer with first read position
+rmpa	1		;read memory from pointer position
+wrax	dout1,0		;store first value, clear ACC
+
+;now get second  value:
+
+or	%00000000_00000001_00000000	
+rdax	pfil2,1		;get pointer back and add
+wrax	addr_ptr,0	;load pointer again
+rmpa	1
+wrax	dout2,0		;store second value, clear accumulator
+
+;now get an interpolation value:
+
+rdax	pfil2,1
+and	%00000000_00000000_11111111
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-2,0		
+sof	1.999,0		;shift 15 paces
+wrax	interp,0	;save in register
+
+;now crossfade between delay read values using interp value:
+
+rdax	dout2,1
+rdax	dout1,-1
+mulx	interp		;crossfade with interp
+rdax	dout1,1
+
+;now take this as the output, filter and arrange feedback:
+
+wrax	dacl,1		;write result to both outputs, full scale
+wrax	dacr,1		;keep in ACC
+wrax	temp,1		;store in temp
+rdfx	lpf,0.1		;filter signal
+wrlx	lpf,-1		;acc is filtered
+rdax	temp,-1		;negative filter input value
+mulx	pot2		;crossfade around filter eith pot2
+rdax	temp,1		;filter in again, in phase
+wrax	fbk,0		;write to feedback register
+
+
+
+
+
+
+
+
+
