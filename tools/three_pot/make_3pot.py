@@ -25,10 +25,11 @@ SOFTWARE.
 import sys
 from datetime import datetime, timezone
 import subprocess
+import os.path
 
 filename = sys.argv[1]
 
-docs = [ filename.replace( '.hex', '' ), "Pot 1", "Pot 2", "Pot 3", "" ]
+docs = [ os.path.basename( filename ).replace( '.hex', '' ), "Pot 1", "Pot 2", "Pot 3", "" ]
 docfile = filename.replace( '.hex', '.txt' )
 try:
 	with open( docfile, 'r' ) as F:

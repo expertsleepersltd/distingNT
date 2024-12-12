@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "spn/rom_rev1",
+"name": "rom_rev1",
 "pot1": "Pot 1",
 "pot2": "Pot 2",
 "pot3": "Pot 3",
 "description": "",
 "code_size": 2147,
-"build_date": "2024-12-12 08:28:45.143257+00:00",
+"build_date": "2024-12-12 09:13:32.457173+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":100000000269C36830B51AB9FB4A8261FB4AC26112"
