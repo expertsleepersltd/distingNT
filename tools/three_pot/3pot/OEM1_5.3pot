@@ -7,6 +7,8 @@
 "pot3": "Pot 3",
 "description": "",
 "code_size": 579,
+"build_date": "2024-12-12 08:28:44.896222+00:00",
+"toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":10000000B6EE006ADFED867AD0ED2E6A82B090ED12"
 ,":100010001A7A76EEA76AD0ED165A27EE067AC268EB"

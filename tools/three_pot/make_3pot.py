@@ -23,6 +23,8 @@ SOFTWARE.
 '''
 
 import sys
+from datetime import datetime, timezone
+import subprocess
 
 filename = sys.argv[1]
 
@@ -53,6 +55,8 @@ def computeCodeSize( lines ):
 		size = max( size, address + count - 1 )
 	return size
 
+toolchain = subprocess.run( 'arm-none-eabi-c++ --version', capture_output=True, shell=True, text=True ).stdout.split('\n')[0].strip()
+
 with open( filename, 'r' ) as F:
 	lines = F.readlines()
 	size = computeCodeSize( lines )
@@ -65,6 +69,8 @@ with open( filename, 'r' ) as F:
 	print( '"pot3": "' + docs[3] + '",' )
 	print( '"description": "' + docs[4] + '",' )
 	print( f'"code_size": {size},' )
+	print( '"build_date": "' + str( datetime.now( tz=timezone.utc ) ) + '",' )
+	print( f'"toolchain": "{toolchain}",' )
 	print( '"code":[' )
 	print( ','.join( lines ) )
 	print( ']' )
