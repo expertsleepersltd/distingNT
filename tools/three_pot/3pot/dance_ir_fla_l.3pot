@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "Disco flange",
+"name": "Reverb+Flange+LP",
 "pot1": "Reverb",
 "pot2": "Flange",
 "pot3": "Lowpass",
-"description": ";pot0 controls reverb time, but also affects input drive level; ;reveb time is moderate up to about mid position, then increases ;to infinity (or nearly) at full position. ;input drive is constant, but decreases at the full pot0 position. ;output mix is varied over the first half of pot0, then remains ;high to the end of pot0's range.",
+"description": "Reverb plus flange plus 4-pole low pass.",
 "code_size": 1359,
-"build_date": "2024-12-13 13:31:00.971411+00:00",
+"build_date": "2024-12-13 15:08:58.474838+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":1000000038B503690446C5682DED048B9FEDF88A69"

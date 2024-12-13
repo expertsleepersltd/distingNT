@@ -10,6 +10,7 @@
 !OEM1_7.spn
 !dance_ir_fla_l.spn
 !dance_ir_h_l.spn
+!dance_ir_ptz_l.spn
 !dist.spn
 !min_rev1.spn
 !rev_rt_d_f.spn
@@ -32,6 +33,7 @@
 !OEM1.txt
 !dance_ir_fla_l.txt
 !dance_ir_h_l.txt
+!dance_ir_ptz_l.txt
 !dist.txt
 !min_rev1.txt
 !rev_rt_d_f.txt

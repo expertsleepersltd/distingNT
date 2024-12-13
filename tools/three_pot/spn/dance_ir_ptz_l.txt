@@ -1,0 +1,5 @@
+Reverb+Pitch+LP
+Reverb
+Pitch
+Low pass
+Reverb plus pitch plus 4-pole low-pass.

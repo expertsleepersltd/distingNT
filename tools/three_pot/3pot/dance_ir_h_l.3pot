@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "Disco filter",
+"name": "Reverb+HP+LP",
 "pot1": "Reverb",
-"pot2": "High pass filter",
-"pot3": "Low pass filter",
-"description": "",
+"pot2": "High pass",
+"pot3": "Low pass",
+"description": "Reverb plus 2-pole high-pass and 2-pole low-pass.",
 "code_size": 1115,
-"build_date": "2024-12-13 13:31:00.973240+00:00",
+"build_date": "2024-12-13 15:08:58.735068+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":1000000038B52DED068B9FEDFA8AF6EE008A90ED5D"
