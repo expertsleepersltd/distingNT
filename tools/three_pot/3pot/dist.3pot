@@ -7,7 +7,7 @@
 "pot3": "Pot 3",
 "description": "Begin distorting signal at -18dB (input referred). At the output, the signal will begin to distort at half of full scale, and further increase of input signal will cause increasingly 'flattened' signal peaks.",
 "code_size": 207,
-"build_date": "2024-12-12 09:13:32.306589+00:00",
+"build_date": "2024-12-13 13:31:01.026181+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":10000000F6EE007A90ED1B0A90ED1A7A2C4B20EE5A"
