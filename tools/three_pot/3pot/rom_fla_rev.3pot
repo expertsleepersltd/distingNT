@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "rom_fla_rev",
-"pot1": "Pot 1",
-"pot2": "Pot 2",
-"pot3": "Pot 3",
-"description": "",
+"name": "ROM flange/reverb",
+"pot1": "Reverb mix",
+"pot2": "Flange rate",
+"pot3": "Flange mix",
+"description": "Combination flange/reverb program from the FV-1 internal ROM.",
 "code_size": 2571,
-"build_date": "2024-12-13 13:31:01.225637+00:00",
+"build_date": "2024-12-13 15:27:04.111284+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":1000000037B50269C3681AB9FB4A8261FB4AC2610B"

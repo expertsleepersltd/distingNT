@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "rom_pt_echo",
-"pot1": "Pot 1",
-"pot2": "Pot 2",
-"pot3": "Pot 3",
-"description": "",
+"name": "ROM pitch-echo",
+"pot1": "Pitch",
+"pot2": "Echo time",
+"pot3": "Echo mix",
+"description": "Pitch transpose in left channel, echo in right channel.",
 "code_size": 831,
-"build_date": "2024-12-13 13:31:01.231124+00:00",
+"build_date": "2024-12-13 15:27:04.109926+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":100000000369C26813B94FF08B43C3629FEDC66AA0"

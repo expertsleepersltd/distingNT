@@ -1,0 +1,5 @@
+ROM reverb 2
+Reverb time
+Low freq
+High freq
+Reverb 2 program from the FV-1 internal ROM.

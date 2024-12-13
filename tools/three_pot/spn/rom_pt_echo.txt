@@ -1,0 +1,5 @@
+ROM pitch-echo
+Pitch
+Echo time
+Echo mix
+Pitch transpose in left channel, echo in right channel.

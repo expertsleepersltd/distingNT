@@ -1,0 +1,5 @@
+ROM tremolo/reverb
+Reverb mix
+Trem rate
+Trem mix
+Combination tremolo/reverb program from the FV-1 internal ROM.

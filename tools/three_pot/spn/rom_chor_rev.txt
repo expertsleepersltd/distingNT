@@ -1,0 +1,5 @@
+ROM reverb/chorus
+Reverb mix
+Chorus rate
+Chorus mix/width
+Reverb/chorus program from the FV-1 internal ROM.

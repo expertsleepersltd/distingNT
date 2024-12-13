@@ -1,0 +1,5 @@
+ROM flange/reverb
+Reverb mix
+Flange rate
+Flange mix
+Combination flange/reverb program from the FV-1 internal ROM.
