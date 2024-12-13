@@ -1,0 +1,5 @@
+Gated Reverb
+Time
+Decay
+Damping
+Gated reverb by FIR technique. Good for percussion, but signal levels may accumulate with continuous program.

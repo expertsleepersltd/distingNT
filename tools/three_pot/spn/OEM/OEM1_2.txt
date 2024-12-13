@@ -1,0 +1,5 @@
+Small Hall
+Decay
+Predelay
+Damping
+The small hall has a more immediate initial sound with high impulse density, which makes it more useful with percussion.

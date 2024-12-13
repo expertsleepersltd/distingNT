@@ -1,0 +1,5 @@
+Plate
+Decay
+Predelay
+Damping
+The plate program exhibits very high initial density, providing an immediate and explosive initial sound.

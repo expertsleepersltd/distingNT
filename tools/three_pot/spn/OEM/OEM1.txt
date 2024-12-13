@@ -1,0 +1,23 @@
+OEM PROGRAMS, OEM1.
+
+This package contains 8 programs, organized as follows:
+
+name	program type	pot0 	pot1		pot2		notes:
+
+OEM1_0	PA Vocal	Decay	Predelay	Damping
+OEM1_1	Large Hall	Decay	Predelay	Damping
+OEM1_2	Small Hall	Decay	Predelay	Damping
+OEM1_3	Plate		Decay	Predelay	Damping
+OEM1_4	Gated Reverb	Time	Decay		Damping
+OEM1_5	Echo		Repeat	Delay		Damping
+OEM1_6	Flange		Delay	Width		Rate		DIRECT EFFECT
+OEM1_7	Chorus		Depth	Width		Rate
+
+This set of effects encompasses a wide range of professional applications.
+
+The program set is designed for a mono input from a single effects send, with stereo outputs, for portable mixer applications.
+
+The PA vocal program is especially tailored to provide a flat frequency response, so that in live applications, potential feedback is reduced. Other programs, such as the halls, the plate and the gated program have complicated frequency responses that are excellent in recordings or for use with strong signal sources, such as mic'd snare drums. Of course these other programs can 
+be used with live vocals, but if feedback becomes a problem, this PA Vocal 
+program should be selected instead.
+

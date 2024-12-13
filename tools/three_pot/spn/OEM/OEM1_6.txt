@@ -1,0 +1,5 @@
+Flange
+Delay
+Width
+Rate
+The flanger produces a swept delay that approaches zero delay.

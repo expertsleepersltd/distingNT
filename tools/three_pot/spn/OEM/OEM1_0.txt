@@ -1,0 +1,5 @@
+PA Vocal
+Decay
+Predelay
+Damping
+This program is especially designed for vocals in high gain PA applications. It has been developed to have maximum impact, but a flat response so that it can be heavily mixed into live PA applications without feedback.

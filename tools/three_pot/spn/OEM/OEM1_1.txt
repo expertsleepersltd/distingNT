@@ -1,0 +1,5 @@
+Large Hall
+Decay
+Predelay
+Damping
+The large hall has a rough initial sound with eventual high impulse density.

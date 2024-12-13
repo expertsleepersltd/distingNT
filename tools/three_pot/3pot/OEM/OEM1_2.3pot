@@ -1,13 +1,13 @@
 {
 "kind": "disting NT 3pot",
 "version": 1,
-"name": "OEM1_2",
-"pot1": "Pot 1",
-"pot2": "Pot 2",
-"pot3": "Pot 3",
-"description": "",
+"name": "Small Hall",
+"pot1": "Decay",
+"pot2": "Predelay",
+"pot3": "Damping",
+"description": "The small hall has a more immediate initial sound with high impulse density, which makes it more useful with percussion.",
 "code_size": 2643,
-"build_date": "2024-12-13 13:31:01.324366+00:00",
+"build_date": "2024-12-13 15:03:08.094510+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "code":[
 ":10000000DFEDFA5AD0ED167ADFEDF96A77EEA57AD0"
