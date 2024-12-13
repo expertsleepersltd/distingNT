@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-inputs := $(wildcard spn/*.spn)
+inputs := $(wildcard spn/*.spn) $(wildcard spn/*/*.spn)
 outputs := $(patsubst spn/%.spn,3pot/%.3pot,$(inputs))
 texts := $(patsubst %.spn,%.text,$(inputs))
 objects := $(patsubst %.spn,%.o,$(inputs))
@@ -49,4 +49,5 @@ clean:
 	arm-none-eabi-objcopy -O ihex $^ $@
 
 3pot/%.3pot: spn/%.hex
+	mkdir -p $(@D)
 	python3 make_3pot.py $^ > $@
