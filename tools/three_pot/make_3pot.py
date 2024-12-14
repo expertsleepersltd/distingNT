@@ -30,6 +30,29 @@ import os.path
 filename = sys.argv[1]
 
 docs = [ os.path.basename( filename ).replace( '.hex', '' ), "Pot 1", "Pot 2", "Pot 3", "" ]
+
+spnfile = filename.replace( '.hex', '.spn' )
+try:
+	with open( spnfile, 'r' ) as F:
+		lines = F.readlines()
+		lines = [ l.strip() for l in lines ]
+		if lines[1].startswith( '; ' ):
+			title = lines[1][2:].strip()
+			if title != 'null':
+				docs[0] = title
+		for i in range(3):
+			if lines[2+i].startswith( f'; Pot {i}: ' ):
+				pot = lines[2+i][9:].strip()
+				if len(pot) > 0:
+					docs[1+i] = pot
+		description = ''
+		for i in range(2):
+			if lines[5+i].startswith( '; ' ):
+				description += lines[5+i][2:] + ' '
+		docs[4] = description.strip()
+except FileNotFoundError:
+	pass
+
 docfile = filename.replace( '.hex', '.txt' )
 try:
 	with open( docfile, 'r' ) as F:
