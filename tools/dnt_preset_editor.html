@@ -178,6 +178,7 @@ for ( let i=0; i<32; ++i ) {
 </script>
 </select>
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
+<button onclick="wake()">Wake</button>
 <p>
 <label class="hidden" for="log">Log:</label><textarea rows=5 cols=50 id="log" accesskey="l" class="log" readOnly></textarea>
 <label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
@@ -301,6 +302,7 @@ var numAlgorithms = 0;
 
 function processNumAlgorithms( data ) {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let current = document.getElementById( 'algorithms_menu' ).value;
 	numAlgorithms = extractShort( data );
 	let str = '';
 	for ( let i=0; i<numAlgorithms; ++i ) {
@@ -313,6 +315,9 @@ function processNumAlgorithms( data ) {
 	}
 	let m = document.getElementById( 'algorithms_menu' );
 	m.innerHTML = str;
+	if ( current != "" ) {
+		document.getElementById( 'algorithms_menu' ).value = current;
+	}
 }
 
 var factories = [];
@@ -1411,6 +1416,15 @@ function onMIDIMessage(message) {
 		processRoutingInfo( data.slice( 7, -1 ) );
 	}
 }
+
+function wake() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x07, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent wake request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
 function refresh() {
 	if ( routingAnalysisMode ) {
 		requestRouting();
