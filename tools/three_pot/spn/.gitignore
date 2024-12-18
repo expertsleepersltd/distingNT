@@ -1,5 +1,4 @@
-*.spn
-*.txt
+*
 !OEM1_0.spn
 !OEM1_1.spn
 !OEM1_2.spn

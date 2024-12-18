@@ -28,6 +28,7 @@ import subprocess
 import os.path
 
 filename = sys.argv[1]
+include = sys.argv[2]
 
 docs = [ os.path.basename( filename ).replace( '.hex', '' ), "Pot 1", "Pot 2", "Pot 3", "" ]
 
@@ -81,6 +82,14 @@ def computeCodeSize( lines ):
 
 toolchain = subprocess.run( 'arm-none-eabi-c++ --version', capture_output=True, shell=True, text=True ).stdout.split('\n')[0].strip()
 
+abi = '0'
+with open( os.path.join( include, 'three_pot_state.h' ), 'r' ) as F:
+	lines = F.readlines()
+	for line in lines:
+		if line.startswith( '#define THREE_POT_ABI_VERSION' ):
+			abi = line[29:].strip()
+			break
+	
 with open( filename, 'r' ) as F:
 	lines = F.readlines()
 	size = computeCodeSize( lines )
@@ -95,6 +104,7 @@ with open( filename, 'r' ) as F:
 	print( f'"code_size": {size},' )
 	print( '"build_date": "' + str( datetime.now( tz=timezone.utc ) ) + '",' )
 	print( f'"toolchain": "{toolchain}",' )
+	print( f'"abi_version": "{abi}",' )
 	print( '"code":[' )
 	print( ','.join( lines ) )
 	print( ']' )

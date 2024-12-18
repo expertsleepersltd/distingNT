@@ -50,4 +50,4 @@ clean:
 
 3pot/%.3pot: spn/%.hex
 	mkdir -p $(@D)
-	python3 make_3pot.py $^ > $@
+	python3 make_3pot.py $^ $(INCLUDE_PATH) > $@
