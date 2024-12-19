@@ -91,9 +91,62 @@ td.routingSlotName {
 td.routingSlot {
 	text-align: center;
 }
+.lua-controls {
+    margin: 10px 0;
+}
+.lua-editor {
+    margin: 10px 0;
+	display: none;
+}
+.lua-editor-header {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin: 20px 0;
+}
+#luaScript {
+    width: 100%;
+	max-width: 800px;
+	min-height: 1024px;
+    font-family: monospace;
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+.map_ui_lua {
+    display: none;
+}
+
+/* New styling for the slot grid */
+#slotGrid {
+    margin: 10px 0;
+}
+.slotRow {
+    margin-bottom: 5px;
+}
+.slotBtn {
+    width: 40px;
+    height: 40px;
+    margin: 2px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    background-color: #eee;
+    cursor: pointer;
+}
+.slotBtn:hover {
+    background-color: #ddd;
+}
+.selectedSlotBtn {
+    background-color: #88f;
+    color: #fff;
+}
+
 </style>
 
 <script>
+// Add selectedSlot variable at the top level
+var selectedSlot = 0;
+
 function log( t ) {
 	var ta = document.getElementById( "log" );
 	var d = new Date();
@@ -143,6 +196,50 @@ function dumpSysex( data, id, prefix ) {
 		document.getElementById( id ).value = h;
 	}
 }
+
+function buildSlotGrid() {
+    let container = document.getElementById('slotGrid');
+    container.innerHTML = '';
+    // 2 rows, 16 columns = 32 slots total
+    for (let row = 0; row < 2; row++) {
+        let rowDiv = document.createElement('div');
+        rowDiv.className = 'slotRow';
+        for (let col = 0; col < 16; col++) {
+            let slotIndex = row * 16 + col;
+            let slotNumber = slotIndex + 1;
+            let btn = document.createElement('button');
+            btn.className = 'slotBtn';
+            btn.innerText = slotNumber;
+            btn.onclick = () => selectSlot(slotIndex);
+            rowDiv.appendChild(btn);
+        }
+        container.appendChild(rowDiv);
+    }
+    highlightSelectedSlot();
+}
+
+function highlightSelectedSlot() {
+    let container = document.getElementById('slotGrid');
+    let buttons = container.getElementsByClassName('slotBtn');
+    for (let i = 0; i < buttons.length; i++) {
+        let btn = buttons[i];
+        if (i === selectedSlot) {
+            btn.classList.add('selectedSlotBtn');
+        } else {
+            btn.classList.remove('selectedSlotBtn');
+        }
+    }
+}
+
+function selectSlot(slot) {
+    selectedSlot = slot;
+    highlightSelectedSlot();
+    changeSlot();
+}
+
+
+
+
 </script>
 
 </head>
@@ -169,14 +266,14 @@ for ( let i=0; i<127; ++i ) {
 }
 </script>
 </select>
-<label for="slot">Slot: </label>
+<!-- <label for="slot">Slot: </label>
 <select id="slot" onchange='changeSlot()'>
 <script>
 for ( let i=0; i<32; ++i ) {
 	document.write( '<option value=' + i + '>' + (i+1) + '</option>' );
 }
 </script>
-</select>
+</select> -->
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
 <button onclick="wake()">Wake</button>
 <p>
@@ -184,6 +281,11 @@ for ( let i=0; i<32; ++i ) {
 <label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
 <label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x"></textarea>
 </p>
+<label for="slot">Slot: 
+	<div id="slotGrid"></div>
+</label>
+
+
 
 <button class="big" onclick="showSlotEditor()">Edit parameters</button>
 <button class="big" onclick="showRoutingAnalysis()">Show routing</button>
@@ -216,6 +318,8 @@ for ( let i=0; i<32; ++i ) {
 <input id='show_mapping_midi' type='checkbox' accesskey="m" onchange="toggleMappings('midi')">
 <label for="show_mapping_i2c">Show I2C mappings:</label>
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
+<label for="show_ui_lua">Show UI Lua Builder:</label>
+<input id='show_ui_lua' type='checkbox' accesskey="l" onchange="toggleUILua()">
 <br>
 <label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
 <p>
@@ -236,6 +340,21 @@ for ( let i=0; i<32; ++i ) {
 <div id=routingAnalysisContent></div>
 
 </div> <!--routingAnalysis-->
+
+<div id="uiLuaBuilder" style="display: none;"></div>
+    <div class="lua-editor">
+		<div class="lua-editor-header">
+			<h3>Lua Script Preview</h3>
+			<button id="downloadLuaBtn" onclick="downloadLuaScript()">Download Lua Script</button>
+			<button onclick="deleteLuaParams()">Delete UI Mapping</button>
+			<label for="show_preview">Show Preview:</label>
+			<input type="checkbox" id="show_preview" onchange="togglePreview()" checked>
+			<br>
+			<canvas id="previewCanvas" width="256" height="64" style="border:1px solid #ccc; display:none;"></canvas>
+		</div>
+        <textarea id="luaScript" rows="20" readonly></textarea>
+    </div>
+</div> 
 
 <script>
 const dntRoutingColour1Key = "dntRoutingColour1";
@@ -274,18 +393,27 @@ function lookupGuid( guid ) {
 	return -1;
 }
 
-function processAlgorithm( slot, data ) {
-	let guid = data.slice( 0, 4 );
-	let f = lookupGuid( guid );
-	if ( f >= 0 ) {
-		if ( routingAnalysisMode ) {
-			guids[ slot ] = f;
-		} else {
-			document.getElementById( "slot_algorithm_name" ).innerHTML = factories[f][3][0];
-		}
-	}
-}
+function processAlgorithm(slot, data) {
+    let guid = data.slice(0, 4);
+    let f = lookupGuid(guid);
+    if (f < 0) {
+        console.warn("No matching algorithm found for GUID:", guid);
+        return; 
+    }
 
+    if (routingAnalysisMode) {
+        guids[slot] = f;
+    } else {
+        // Only update the UI if this is the currently selected slot
+        if (slot === selectedSlot) {
+            if (factories[f] && factories[f][3] && factories[f][3][0]) {
+                document.getElementById("slot_algorithm_name").innerHTML = factories[f][3][0];
+            } else {
+                console.warn("Algorithm data missing for factory index:", f);
+            }
+        }
+    }
+}
 function processPresetName( data ) {
 	var name = "";
 	for ( var i = 0; i < 21; ++i ) {
@@ -358,7 +486,7 @@ function processAlgorithmInfo( data ) {
 	if ( index == numAlgorithms-1 ) {
 		changeAlgorithm();
 
-		let slot = document.getElementById( 'slot' ).value;
+		let slot = selectedSlot
 		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, slot, 0xF7 ];
 		output.send( arr );
@@ -721,9 +849,8 @@ function processMapping( data ) {
 nextParameterToGet = 0;
 numParametersToGet = 0;
 function getNextParameter() {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x43, slot, (nextParameterToGet>>14)&3, (nextParameterToGet>>7)&0x7f, nextParameterToGet&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x43, selectedSlot, (nextParameterToGet>>14)&3, (nextParameterToGet>>7)&0x7f, nextParameterToGet&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent parameter info request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -737,96 +864,173 @@ function getNextParameter() {
 
 numParameters = 0;
 function processNumParameters( data ) {
-	let num = extractShort( data.slice( 0, 3 ) );
-	if ( num >= 256 ) {
-		alert( "Invalid num parameters in processNumParameters()" );
-		return;
-	}
-	numParameters = num;
-	var str = "<table>";
-	str += "<thead>";
-	str += "<tr><th colspan=8>Preset</th><th colspan=5 class='map_cv'>CV Mapping</th><th colspan=6 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
-	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
-	str += "<th class='map_cv'>Source</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
-	str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
-	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
-	str += "</tr>";
-	str += "</thead><tbody>";
+    let num = extractShort( data.slice( 0, 3 ) );
+    if ( num >= 256 ) {
+        alert( "Invalid num parameters in processNumParameters()" );
+        return;
+    }
+    numParameters = num;
+    var str = "<table>";
+    str += "<thead>";
+    str += "<tr><th colspan=8>Preset</th><th colspan=5 class='map_cv'>CV Mapping</th><th colspan=6 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th><th colspan=5 class='map_ui_lua'>UI Builder</th></tr>";
+    str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
+    str += "<th class='map_cv'>Source</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
+    str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
+    str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
+    str += "<th class='map_ui_lua'>Controller</th><th class='map_ui_lua'>Nickname</th><th class='map_ui_lua'>Min</th><th class='map_ui_lua'>Max</th><th class='map_ui_lua'>Invert</th>";
+    str += "</tr>";
+    str += "</thead><tbody>";
 
-	for ( let i=0; i<num; ++i ) {
-		str += "<tr id=row" + i + " class=" + ((i&1)?"a":"b") + "><td>" + (i+1) + "</td>";
-		str += "<td id=p" + i + "_name><h1>" + "</h1></td>";
-		str += "<td id=p" + i + "_min>" + "</td>";
-		str += "<td id=p" + i + "_max>" + "</td>";
-		var focus = " onfocus='param_focus(" + i + ")' ";
-		str += "<td><button id=p" + i + "_def class='param_def' onclick='param_def(" + i + ")'" + focus + "></button></td>";
-		str += "<td id=p" + i + "_unit>" + "</td>";
-		str += "<td><input id=p" + i + "_v type='number' class='param_v' size=6 onchange='param_text(" + i + ")'" + focus + ">" + "</td>";
-		str += "<td>";
-		str += "<input id=p" + i + "_s type='range' min='-32768' max='32767' class='param_s' onInput='param_slider(" + i + ")' ondblclick='param_def(" + i + ")'" + focus + ">";
-		str += "<select id=p" + i + "_e class='param_e' onchange='param_enum(" + i + ")' style='display:none;'" + focus + "></select>";
-		str += "<input id=p" + i + "_c type='checkbox' class='param_c' onchange='param_check(" + i + ")' style='display:none;'" + focus + ">";
-		str += "<div class='pv_string' id=p" + i + "_pv></div>";
-		str += "</td>";
+    for ( let i=0; i<num; ++i ) {
+        str += "<tr id=row" + i + " class=" + ((i&1)?"a":"b") + "><td>" + (i+1) + "</td>";
+        str += "<td id=p" + i + "_name><h1>" + "</h1></td>";
+        str += "<td id=p" + i + "_min>" + "</td>";
+        str += "<td id=p" + i + "_max>" + "</td>";
+        var focus = " onfocus='param_focus(" + i + ")' ";
+        str += "<td><button id=p" + i + "_def class='param_def' onclick='param_def(" + i + ")'" + focus + "></button></td>";
+        str += "<td id=p" + i + "_unit>" + "</td>";
+        str += "<td><input id=p" + i + "_v type='number' class='param_v' size=6 onchange='param_text(" + i + ")'" + focus + ">" + "</td>";
+        str += "<td>";
+        str += "<input id=p" + i + "_s type='range' min='-32768' max='32767' class='param_s' onInput='param_slider(" + i + ")' ondblclick='param_def(" + i + ")'" + focus + ">";
+        str += "<select id=p" + i + "_e class='param_e' onchange='param_enum(" + i + ")' style='display:none;'" + focus + "></select>";
+        str += "<input id=p" + i + "_c type='checkbox' class='param_c' onchange='param_check(" + i + ")' style='display:none;'" + focus + ">";
+        str += "<div class='pv_string' id=p" + i + "_pv></div>";
+        str += "</td>";
 
-		{
-			str += "<td class='map_cv'><select id=p" + i + "_cv_input onchange='mapping_cv_input(" + i + ")'><option value=0>None</option>";
-			for ( let j=1; j<=12; ++j ) {
-				str += "<option value=" + j + ">Input " + j + "</option>";
-			}
-			for ( let j=1; j<=8; ++j ) {
-				str += "<option value=" + (12+j) + ">Output " + j + "</option>";
-			}
-			for ( let j=1; j<=8; ++j ) {
-				str += "<option value=" + (20+j) + ">Aux " + j + "</option>";
-			}
-			str += "</select></td>";
-			str += "<td class='map_cv'><input id=p" + i + "_cv_uni type='checkbox' class='param_c' onchange='mapping_cv_uni(" + i + ")'></td>";
-			str += "<td class='map_cv'><input id=p" + i + "_cv_gate type='checkbox' class='param_c' onchange='mapping_cv_gate(" + i + ")'></td>";
-			str += "<td class='map_cv'><input id=p" + i + "_cv_volts type='number' class='param_v' size=3 step='1' min='1' max='12' onchange='mapping_cv_volts(" + i + ")'></td>";
-			str += "<td class='map_cv'><input id=p" + i + "_cv_delta type='number' class='param_v' size=7 step='1' min='-32768' max='32767' onchange='mapping_cv_delta(" + i + ")'></td>";
-		}
+        {
+            str += "<td class='map_cv'><select id=p" + i + "_cv_input onchange='mapping_cv_input(" + i + ")'><option value=0>None</option>";
+            for ( let j=1; j<=12; ++j ) {
+                str += "<option value=" + j + ">Input " + j + "</option>";
+            }
+            for ( let j=1; j<=8; ++j ) {
+                str += "<option value=" + (12+j) + ">Output " + j + "</option>";
+            }
+            for ( let j=1; j<=8; ++j ) {
+                str += "<option value=" + (20+j) + ">Aux " + j + "</option>";
+            }
+            str += "</select></td>";
+            str += "<td class='map_cv'><input id=p" + i + "_cv_uni type='checkbox' class='param_c' onchange='mapping_cv_uni(" + i + ")'></td>";
+            str += "<td class='map_cv'><input id=p" + i + "_cv_gate type='checkbox' class='param_c' onchange='mapping_cv_gate(" + i + ")'></td>";
+            str += "<td class='map_cv'><input id=p" + i + "_cv_volts type='number' class='param_v' size=3 step='1' min='1' max='12' onchange='mapping_cv_volts(" + i + ")'></td>";
+            str += "<td class='map_cv'><input id=p" + i + "_cv_delta type='number' class='param_v' size=7 step='1' min='-32768' max='32767' onchange='mapping_cv_delta(" + i + ")'></td>";
+        }
 
-			str += "<td class='map_midi'><select id=p" + i + "_midi_ch class='param_v' onchange='mapping_midi_ch(" + i + ")'>";
-			for ( let j=0; j<16; ++j ) {
-				str += "<option value=" + j + ">" + (j+1) + "</option>";
-			}
-			str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
-			for ( let j=0; j<128; ++j ) {
-				str += "<option value=" + j + ">" + j + "</option>";
-			}
-			str += "<option value=128>Aftertouch</option></select></td>";
-			str += "<td class='map_midi'><input id=p" + i + "_midi_en type='checkbox' class='param_c' onchange='mapping_midi_en(" + i + ")'></td>";
-			str += "<td class='map_midi'><input id=p" + i + "_midi_sym type='checkbox' class='param_c' onchange='mapping_midi_sym(" + i + ")'></td>";
-			str += "<td class='map_midi'><input id=p" + i + "_midi_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_min(" + i + ")'></td>";
-			str += "<td class='map_midi'><input id=p" + i + "_midi_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_max(" + i + ")'></td>";
+        str += "<td class='map_midi'><select id=p" + i + "_midi_ch class='param_v' onchange='mapping_midi_ch(" + i + ")'>";
+        for ( let j=0; j<16; ++j ) {
+            str += "<option value=" + j + ">" + (j+1) + "</option>";
+        }
+        str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
+        for ( let j=0; j<128; ++j ) {
+            str += "<option value=" + j + ">" + j + "</option>";
+        }
+        str += "<option value=128>Aftertouch</option></select></td>";
+        str += "<td class='map_midi'><input id=p" + i + "_midi_en type='checkbox' class='param_c' onchange='mapping_midi_en(" + i + ")'></td>";
+        str += "<td class='map_midi'><input id=p" + i + "_midi_sym type='checkbox' class='param_c' onchange='mapping_midi_sym(" + i + ")'></td>";
+        str += "<td class='map_midi'><input id=p" + i + "_midi_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_min(" + i + ")'></td>";
+        str += "<td class='map_midi'><input id=p" + i + "_midi_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_max(" + i + ")'></td>";
 
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_cc type='number' class='param_v' size=3 min='0' max='127' onchange='mapping_i2c_cc(" + i + ")'></td>";
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_en type='checkbox' class='param_c' onchange='mapping_i2c_en(" + i + ")'></td>";
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
+        str += "<td class='map_i2c'><input id=p" + i + "_i2c_cc type='number' class='param_v' size=3 min='0' max='127' onchange='mapping_i2c_cc(" + i + ")'></td>";
+        str += "<td class='map_i2c'><input id=p" + i + "_i2c_en type='checkbox' class='param_c' onchange='mapping_i2c_en(" + i + ")'></td>";
+        str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
+        str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
+        str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
 
-		str += "</tr>";
-	}
-	str += "</tbody></table>";
-	document.getElementById( "parameters" ).innerHTML = str;
-	nextParameterToGet = 0;
-	numParametersToGet = num;
-	setTimeout( getNextParameter, 20 );
+        // Add UI Builder controls
+        str += "<td class='map_ui_lua'><select id=p" + i + "_ui_controller onchange='ui_controller_change(" + i + ")'>";
+        str += "<option value=''>None</option>";
+        // Buttons (1-3 only)
+        for (let j=1; j<=3; j++) {
+            str += "<option value='button" + j + "Push'>Button " + j + " Push</option>";
+            str += "<option value='button" + j + "Release'>Button " + j + " Release</option>";
+        }
+        // Pots
+        for (let j=1; j<=3; j++) {
+            str += "<option value='pot" + j + "Push'>Pot " + j + " Push</option>";
+            str += "<option value='pot" + j + "Release'>Pot " + j + " Release</option>";
+            str += "<option value='pot" + j + "'>Pot " + j + "</option>";
+        }
+        // Encoders
+        for (let j=1; j<=2; j++) {
+            str += "<option value='encoder" + j + "Push'>Encoder " + j + " Push</option>";
+            str += "<option value='encoder" + j + "Release'>Encoder " + j + " Release</option>";
+            str += "<option value='encoder" + j + "'>Encoder " + j + "</option>";
+        }
+        str += "</select></td>";
+        
+        str += "<td class='map_ui_lua'><input id=p" + i + "_ui_nickname type='text' class='param_v' onchange='ui_nickname_change(" + i + ")'></td>";
+        str += "<td class='map_ui_lua'><input id=p" + i + "_ui_min type='number' class='param_v' size=6 onchange='ui_min_change(" + i + ")'></td>";
+        str += "<td class='map_ui_lua'><input id=p" + i + "_ui_max type='number' class='param_v' size=6 onchange='ui_max_change(" + i + ")'></td>";
+        str += "<td class='map_ui_lua'><input id=p" + i + "_ui_invert type='checkbox' onchange='ui_invert_change(" + i + ")'></td>";
 
-	let slot = document.getElementById( 'slot' ).value;
-	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x44, slot, 0xF7 ];
-	output.send( arr );
-	let dd = log( "sent parameter values request to disting NT" );
-	dumpSysex( arr, "txSysex", dd+"\n" );
+        str += "</tr>";
+    }
+    str += "</tbody></table>";
+    document.getElementById( "parameters" ).innerHTML = str;
+    nextParameterToGet = 0;
+    numParametersToGet = num;
+    setTimeout( getNextParameter, 20 );
 
-	refreshMappingVisibility();
-	mappingRefreshed = false;
-	if ( anyMappingVisible() ) {
-		requestMapping();
-	}
+    let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+    let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x44, selectedSlot, 0xF7 ];
+    output.send( arr );
+    let dd = log( "sent parameter values request to disting NT" );
+    dumpSysex( arr, "txSysex", dd+"\n" );
+
+    refreshMappingVisibility();
+    mappingRefreshed = false;
+    if ( anyMappingVisible() ) {
+        requestMapping();
+    }
+
+    // Set the flag when parameters are loaded
+    parametersLoaded = true;
+    
+    // Check if UI Builder is visible and maintain its state
+    if (document.getElementById('show_ui_lua').checked) {
+        showUIBuilderColumns();
+        loadLuaParams();
+    }
+    
+    // Always update the script after parameters are loaded
+    setTimeout(() => {
+        updateLuaScript();
+    }, 100);
+}
+
+// Add function to show UI Builder columns
+function showUIBuilderColumns() {
+    const elements = document.querySelectorAll('.map_ui_lua');
+    elements.forEach(element => {
+        element.style.display = 'table-cell';
+    });
+}
+
+// Modify toggleUILua function
+function toggleUILua() {
+    const show = document.getElementById('show_ui_lua').checked;
+    const elements = document.querySelectorAll('.map_ui_lua');
+	const uiBuilder = document.querySelector('.lua-editor');
+
+    elements.forEach(element => {
+        element.style.display = show ? 'table-cell' : 'none';
+    });
+    
+    uiBuilder.style.display = show ? 'inline' : 'none';
+    
+    if (show) {
+        loadLuaParams();
+    }
+    updateLuaScript();
+}
+
+// Modify changeSlot function
+function changeSlot() {
+    parametersLoaded = false;
+    initView();
+
+	let slot = selectedSlot; // 0-based
+
+    request();
 }
 
 function initView() {
@@ -837,9 +1041,8 @@ function initView() {
 nextMappingToGet = 0;
 numMappingsToGet = 0;
 function getNextMapping() {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4B, slot, (nextMappingToGet>>14)&3, (nextMappingToGet>>7)&0x7f, nextMappingToGet&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4B, selectedSlot, (nextMappingToGet>>14)&3, (nextMappingToGet>>7)&0x7f, nextMappingToGet&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent mapping request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -890,7 +1093,7 @@ function processParameterInfo( data ) {
 		e.checked = v != 0;
 		e.style = 'display:inline;';
 	} else if ( unit == 1 ) {
-		let slot = document.getElementById( 'slot' ).value;
+		let slot = selectedSlot
 		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x49, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
 		output.send( arr );
@@ -949,18 +1152,16 @@ function processParameterValueString( data ) {
 }
 
 function requestParameterValue( p ) {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x45, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x45, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent parameter value request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 function requestParameterValueString( p ) {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x50, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x50, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent parameter value string request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -969,7 +1170,7 @@ function requestParameterValueString( p ) {
 function send_preset_name() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x47 ];
-	let name = document.getElementById( "preset_name" ).value;
+	let name = document.getElementById( "preset_name" ).value.trim();
 	for ( let i = 0; i < name.length; ++i ) {
 		arr.push( name.charCodeAt( i ) );
 	}
@@ -978,12 +1179,14 @@ function send_preset_name() {
 	output.send( arr );
 	let dd = log( "sent preset name update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
+	
+	// Load any existing UI params for this preset
+	loadLuaParams();
 }
 
 function sendSetValue( p, v ) {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x46, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, (v>>14)&3, (v>>7)&0x7f, v&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x46, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, (v>>14)&3, (v>>7)&0x7f, v&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent parameter update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1021,9 +1224,8 @@ function param_text( p ) {
 
 function param_focus( p ) {
 	if ( document.getElementById( 'auto_focus' ).checked ) {
-		let slot = document.getElementById( 'slot' ).value;
 		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4A, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4A, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 0xF7 ];
 		output.send( arr );
 		let dd = log( "sent focus update to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1038,9 +1240,8 @@ function mapping_send( p ) {
 	let volts = document.getElementById( "p" + p + "_cv_volts" ).value;
 	let delta = document.getElementById( "p" + p + "_cv_delta" ).value;
 
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4D, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, input, flags, volts, (delta>>14)&3, (delta>>7)&0x7f, delta&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4D, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, input, flags, volts, (delta>>14)&3, (delta>>7)&0x7f, delta&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent CV mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1086,9 +1287,8 @@ function mapping_midi( p ) {
 		flags |= (1<<2);
 	}
 
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4E, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4E, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent midi mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1121,9 +1321,8 @@ function mapping_i2c( p ) {
 	let min = document.getElementById( "p" + p + "_i2c_min" ).value;
 	let max = document.getElementById( "p" + p + "_i2c_max" ).value;
 
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4F, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4F, selectedSlot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, 1, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent midi mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1143,6 +1342,695 @@ function mapping_i2c_min( p ) {
 }
 function mapping_i2c_max( p ) {
 	mapping_i2c( p );
+}
+
+function ui_controller_change(p) {
+    let controller = document.getElementById("p" + p + "_ui_controller").value;
+    if (!controller) {
+        // Clear all settings for this parameter when None is selected
+        document.getElementById("p" + p + "_ui_min").value = '';
+        document.getElementById("p" + p + "_ui_max").value = '';
+        document.getElementById("p" + p + "_ui_invert").checked = false;
+        document.getElementById("p" + p + "_ui_nickname").value = '';
+    } else {
+        // Get parameter min/max values
+        let paramMin = parseInt(document.getElementById("p" + p + "_min").innerHTML);
+        let paramMax = parseInt(document.getElementById("p" + p + "_max").innerHTML);
+        
+        // Set default min/max if not set
+        let minInput = document.getElementById("p" + p + "_ui_min");
+        let maxInput = document.getElementById("p" + p + "_ui_max");
+        
+        if (!minInput.value) minInput.value = paramMin;
+        if (!maxInput.value) maxInput.value = paramMax;
+        
+        // Set input ranges
+        minInput.min = paramMin;
+        minInput.max = paramMax;
+        maxInput.min = paramMin;
+        maxInput.max = paramMax;
+    }
+    saveLuaParams();
+    updateLuaScript();
+}
+
+let drawCommands = [];
+let highlightedParamIndex = null;
+
+// Functions to render preview
+
+function togglePreview() {
+    renderPreview();
+}
+
+function renderPreview() {
+    const showPreview = document.getElementById('show_preview').checked;
+    const canvas = document.getElementById('previewCanvas');
+    if (!showPreview) {
+        // If preview is not enabled, hide canvas and return
+        canvas.style.display = 'none';
+        return;
+    }
+
+    canvas.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = 'rgb(0,0,0)';
+	ctx.fillRect(0,0,256,64);
+
+    drawCommands.forEach(cmd => {
+		let baseColor = 'cyan';
+
+		// If this command links to a parameter and that parameter is highlighted, change its color
+		if (highlightedParamIndex !== null && cmd.paramIndex === highlightedParamIndex) {
+			baseColor = 'rgb(255,0,0)'; // Highlight color (red)
+		}
+
+		ctx.fillStyle = baseColor;
+		ctx.strokeStyle = baseColor;
+		ctx.font = "8px monospace";
+
+        switch (cmd.type) {
+            case 'text':
+                ctx.fillText(cmd.text, cmd.x, cmd.y);
+                break;
+            case 'line':
+                ctx.beginPath();
+                ctx.moveTo(cmd.x1, cmd.y1);
+                ctx.lineTo(cmd.x2, cmd.y2);
+                ctx.stroke();
+                break;
+            case 'box':
+                ctx.fillRect(cmd.x1, cmd.y1, cmd.x2 - cmd.x1, cmd.y2 - cmd.y1);
+                break;
+            case 'rectangle':
+                ctx.strokeRect(cmd.x1, cmd.y1, cmd.x2 - cmd.x1, cmd.y2 - cmd.y1);
+                break;
+            // Add other drawing types if needed
+        }
+    });
+}
+
+function updateLuaScript() {
+	const NO_SCRIPT_MESSAGES = {
+    NO_PRESET_NAME: "-- No preset name set",
+    NO_PARAMS: "-- No parameters mapped.",
+    ERROR_GENERATING: "-- Error generating script.",
+	INVALID_PARAMS: "-- Invalid parameter data.",
+	NO_NICKNAME: "-- A nickname is required for any parameter that has a controller selected. \n-- Please add a nickname and try again."
+	};
+
+	function shouldDisableDownloadButton() {
+		let luaScript = document.getElementById('luaScript').value;
+		let isNoScript = Object.values(NO_SCRIPT_MESSAGES).some(msg => luaScript.includes(msg));
+		document.getElementById('downloadLuaBtn').disabled = isNoScript;
+	}
+
+    let presetName = (document.getElementById('preset_name').value || 'Unnamed').trim();
+    if (!presetName) {
+        console.warn('No preset name set');
+        document.getElementById('luaScript').value = NO_SCRIPT_MESSAGES.NO_PRESET_NAME;
+		shouldDisableDownloadButton();
+        return;
+    }
+
+    let storageKey = 'lua_params_' + presetName;
+    let paramsJson = localStorage.getItem(storageKey);
+    if (!paramsJson) {
+        document.getElementById('luaScript').value = NO_SCRIPT_MESSAGES.NO_PARAMS;
+        drawCommands = [];
+        renderPreview();
+		shouldDisableDownloadButton();
+        return;
+    }
+
+    try {
+        let allSlotParams = JSON.parse(paramsJson);
+        if (!allSlotParams || typeof allSlotParams !== 'object') {
+            document.getElementById('luaScript').value = NO_SCRIPT_MESSAGES.INVALID_PARAMS;
+            drawCommands = [];
+            renderPreview();
+			shouldDisableDownloadButton();
+            return;
+        }
+
+        // Flatten all parameters from all slots
+        let globalParamList = [];
+        Object.keys(allSlotParams).forEach(slot => {
+            let slotParams = allSlotParams[slot];
+            if (Array.isArray(slotParams)) {
+                slotParams.forEach(sp => {
+                    // Store the 1-based slot index
+                    sp.slotIndex = parseInt(slot) + 1;
+                });
+                globalParamList = globalParamList.concat(slotParams);
+            }
+        });
+
+		for (let param of globalParamList) {
+        if (param.controllerType && param.controllerType !== '') {
+            if (!param.nickname || param.nickname.trim() === '') {
+                document.getElementById('luaScript').value = NO_SCRIPT_MESSAGES.NO_NICKNAME;
+                drawCommands = [];
+                renderPreview();
+                shouldDisableDownloadButton();
+                return;
+            }
+			}
+		}
+
+        // Limit to 12 parameters for the 3x4 grid
+        let maxDisplayParams = Math.min(globalParamList.length, 12);
+
+        // Arrays to hold script code segments
+        let script = [];
+        let localVars = [];
+        let initCode = [];
+        let controllerFuncs = [];
+        let drawCalls = [];
+        let controllerGroups = {};
+
+        // Prepare drawCommands array for the preview
+        drawCommands = []; // Clear before rebuilding
+
+        // Basic layout and utility functions for 3x4 grid
+        script.push('-- Layout constants for a 3x4 grid');
+        script.push('local COL1_X, COL2_X, COL3_X = 10, 74, 138');
+        script.push('local ROW1_Y, ROW2_Y, ROW3_Y, ROW4_Y = 20, 35, 50, 65');
+        script.push('');
+        script.push('-- Utility functions');
+        script.push('local function to_db(normalized)');
+        script.push('    return -70 + (normalized * 76)  -- Scale to -70dB to +6dB');
+        script.push('end');
+        script.push('');
+        script.push('-- Helper function for enums');
+        script.push('local function getEnumText(options, index)');
+        script.push('    if options and options[index + 1] then');
+        script.push('        return options[index + 1]');
+        script.push('    end');
+        script.push('    return tostring(index)');
+        script.push('end');
+        script.push('');
+
+        // Prepare parameter variables and init lines
+        for (let i = 0; i < maxDisplayParams; i++) {
+            let param = globalParamList[i];
+            let nickname = param.nickname || param.name.toLowerCase().replace(/\s+/g, '_');
+            let paramIndex = param.paramIndex + 1;
+            let slotIndex = param.slotIndex || 1;
+
+            localVars.push(`local ${nickname}_value = 0`);
+
+            if (param.allControlOptions && param.allControlOptions.length > 0) {
+                // Enum parameter
+                localVars.push(`local ${nickname}_options = {${param.allControlOptions.map(opt => `"${opt}"`).join(',')}}`);
+                initCode.push(`    do`);
+                initCode.push(`        local raw = getParameter(${slotIndex}, ${paramIndex})`);
+                initCode.push(`        ${nickname}_value = raw`);
+                initCode.push(`    end`);
+            } else {
+                // Normal parameter
+                initCode.push(`    do`);
+                initCode.push(`        local raw = getParameter(${slotIndex}, ${paramIndex})`);
+                initCode.push(`        local pmin = ${param.min}`);
+                initCode.push(`        local pmax = ${param.max}`);
+                initCode.push(`        local normalized = 0`);
+                initCode.push(`        if pmax > pmin then`);
+                initCode.push(`            normalized = (raw - pmin) / (pmax - pmin)`);
+                initCode.push(`        end`);
+                initCode.push(`        ${nickname}_value = normalized`);
+                initCode.push(`    end`);
+            }
+        }
+
+        // Group parameters by controller
+        globalParamList.forEach(param => {
+            let controllerKey = param.controllerType;
+            if (!controllerKey || controllerKey === '') return;
+            if (!controllerGroups[controllerKey]) {
+                controllerGroups[controllerKey] = [];
+            }
+            controllerGroups[controllerKey].push(param);
+        });
+
+        function transformControllerName(name) {
+            if (name.endsWith('Push') || name.endsWith('Release')) {
+                return name;
+            }
+            return name + 'Turn';
+        }
+
+        function isPotController(name) {
+            return name.startsWith('pot') && name.endsWith('Turn');
+        }
+
+        Object.entries(controllerGroups).forEach(([controller, params]) => {
+            let luaFunctionName = transformControllerName(controller);
+            let isEncoder = luaFunctionName.startsWith('encoder') && luaFunctionName.endsWith('Turn');
+            let isPot = isPotController(luaFunctionName);
+
+            let numParams = params.length;
+
+            if (luaFunctionName.endsWith('Push') || luaFunctionName.endsWith('Release')) {
+                // Buttons
+                controllerFuncs.push(`    ${luaFunctionName} = function()`);
+                params.forEach(p => {
+                    let nickname = p.nickname || p.name.toLowerCase().replace(/\s+/g, '_');
+                    if (p.allControlOptions && p.allControlOptions.length > 0) {
+                        // Enum cycle
+                        controllerFuncs.push(`        ${nickname}_value = (${nickname}_value + 1) % ${p.allControlOptions.length}`);
+                        controllerFuncs.push(`        setParameter(${p.slotIndex}, ${p.paramIndex + 1}, ${nickname}_value)`);
+                    } else {
+                        // Toggle
+                        controllerFuncs.push(`        ${nickname}_value = ${nickname}_value == 1 and 0 or 1`);
+                        controllerFuncs.push(`        setParameterNormalized(${p.slotIndex}, ${p.paramIndex + 1}, ${nickname}_value)`);
+                    }
+                });
+                controllerFuncs.push(`    end,`);
+            } else if (isEncoder) {
+                // Encoder
+                controllerFuncs.push(`    ${luaFunctionName} = function(direction)`);
+                params.forEach(p => {
+                    let nickname = p.nickname || p.name.toLowerCase().replace(/\s+/g, '_');
+                    let step = p.invert ? `(-direction * 0.01)` : `(direction * 0.01)`;
+                    controllerFuncs.push(`        ${nickname}_value = math.max(0, math.min(1, ${nickname}_value + ${step}))`);
+                    controllerFuncs.push(`        setParameterNormalized(${p.slotIndex}, ${p.paramIndex + 1}, ${nickname}_value)`);
+                });
+                controllerFuncs.push(`    end,`);
+            } else if (isPot) {
+                // Pot with soft takeover
+                if (numParams > 1) {
+                    controllerFuncs.push(`    ${luaFunctionName} = function(value)`);
+                    controllerFuncs.push(`        -- This pot controls multiple parameters`);
+                    params.forEach(p => {
+                        let nickname = p.nickname || p.name.toLowerCase().replace(/\s+/g, '_');
+                        let adjustedVal = p.invert ? `(1 - value)` : `value`;
+                        if (p.allControlOptions && p.allControlOptions.length > 0) {
+                            controllerFuncs.push(`        local index = math.floor(${adjustedVal} * (${p.allControlOptions.length - 1}))`);
+                            controllerFuncs.push(`        ${nickname}_value = index`);
+                            controllerFuncs.push(`        setParameter(${p.slotIndex}, ${p.paramIndex + 1}, index)`);
+                        } else {
+                            controllerFuncs.push(`        ${nickname}_value = ${adjustedVal}`);
+                            controllerFuncs.push(`        setParameterNormalized(${p.slotIndex}, ${p.paramIndex + 1}, ${adjustedVal})`);
+                        }
+                    });
+                    controllerFuncs.push(`    end,`);
+                } else {
+                    let p = params[0];
+                    let nickname = p.nickname || p.name.toLowerCase().replace(/\s+/g, '_');
+                    let potVar = `${nickname}_last`;
+                    let potActiveVar = `${nickname}_active`;
+
+                    localVars.push(`local ${potVar} = -1`);
+                    localVars.push(`local ${potActiveVar} = false`);
+
+                    controllerFuncs.push(`    ${luaFunctionName} = function(value)`);
+                    controllerFuncs.push(`        if not ${potActiveVar} then`);
+                    controllerFuncs.push(`            if math.abs(value - ${nickname}_value) < 0.01 then`);
+                    controllerFuncs.push(`                ${potActiveVar} = true`);
+                    controllerFuncs.push(`            else`);
+                    controllerFuncs.push(`                return`);
+                    controllerFuncs.push(`            end`);
+                    controllerFuncs.push(`        end`);
+
+                    let adjustedVal = p.invert ? `(1 - value)` : `value`;
+                    if (p.allControlOptions && p.allControlOptions.length > 0) {
+                        controllerFuncs.push(`        local index = math.floor(${adjustedVal} * (${p.allControlOptions.length - 1}))`);
+                        controllerFuncs.push(`        ${nickname}_value = index`);
+                        controllerFuncs.push(`        setParameter(${p.slotIndex}, ${p.paramIndex + 1}, index)`);
+                    } else {
+                        controllerFuncs.push(`        ${nickname}_value = ${adjustedVal}`);
+                        controllerFuncs.push(`        setParameterNormalized(${p.slotIndex}, ${p.paramIndex + 1}, ${adjustedVal})`);
+                    }
+
+                    controllerFuncs.push(`    end,`);
+                }
+            } else {
+                // Other turn controls
+                controllerFuncs.push(`    ${luaFunctionName} = function(value)`);
+                params.forEach(p => {
+                    let nickname = p.nickname || p.name.toLowerCase().replace(/\s+/g, '_');
+                    let adjustedVal = p.invert ? `(1 - value)` : `value`;
+                    if (p.allControlOptions && p.allControlOptions.length > 0) {
+                        let numOptions = p.allControlOptions.length;
+                        controllerFuncs.push(`        local index = math.floor(${adjustedVal} * (${numOptions - 1}))`);
+                        controllerFuncs.push(`        ${nickname}_value = index`);
+                        controllerFuncs.push(`        setParameter(${p.slotIndex}, ${p.paramIndex + 1}, index)`);
+                    } else {
+                        controllerFuncs.push(`        ${nickname}_value = ${adjustedVal}`);
+                        controllerFuncs.push(`        setParameterNormalized(${p.slotIndex}, ${p.paramIndex + 1}, ${adjustedVal})`);
+                    }
+                });
+                controllerFuncs.push(`    end,`);
+            }
+        });
+
+        // Build draw calls and also create corresponding drawCommands for preview
+        let rowPositions = ['ROW1_Y', 'ROW2_Y', 'ROW3_Y', 'ROW4_Y'];
+        let colPositions = ['COL1_X', 'COL2_X', 'COL3_X'];
+
+        for (let i = 0; i < maxDisplayParams; i++) {
+            let param = globalParamList[i];
+            let nickname = param.nickname || param.name.toLowerCase().replace(/\s+/g, '_');
+            let colIndex = i % 3;
+            let rowIndex = Math.floor(i / 3);
+            let cX = colPositions[colIndex];
+            let rY = rowPositions[rowIndex];
+
+            // Determine what text to display
+            let displayLine;
+            let paramIndexForHighlight = param.paramIndex; // used for highlight
+            if (param.allControlOptions && param.allControlOptions.length > 0) {
+                drawCalls.push(`    drawText(${cX}, ${rY}, string.format("%s: %s", "${param.nickname.toUpperCase()}", getEnumText(${nickname}_options, ${nickname}_value)))`);
+                displayLine = `${param.nickname.toUpperCase()}: [Enum]`;
+            } else {
+                if (param.unit === 'dB') {
+                    drawCalls.push(`    local ${nickname}_db = to_db(${nickname}_value or 0)`);
+                    drawCalls.push(`    drawText(${cX}, ${rY}, string.format("%s: %3.1fdB", "${param.nickname.toUpperCase()}", ${nickname}_db))`);
+                    displayLine = `${param.nickname.toUpperCase()}: dB value`;
+                } else {
+                    drawCalls.push(`    local ${nickname}_percent = (${nickname}_value or 0) * 100`);
+                    drawCalls.push(`    drawText(${cX}, ${rY}, string.format("%s: %3.1f", "${param.nickname.toUpperCase()}", ${nickname}_percent))`);
+                    displayLine = `${param.nickname.toUpperCase()}: % value`;
+                }
+            }
+
+            // add to drawCommands for preview
+            let cXVal = [10, 74, 138][colIndex];
+            let rYVal;
+            switch (rowIndex) {
+                case 0: rYVal = 20; break;
+                case 1: rYVal = 35; break;
+                case 2: rYVal = 50; break;
+                case 3: rYVal = 65; break;
+            }
+
+            drawCommands.push({
+                type: 'text',
+                x: cXVal,
+                y: rYVal,
+                text: displayLine,
+                shade: 15,
+                paramIndex: paramIndexForHighlight
+            });
+        }
+
+        if (globalParamList.length > 12) {
+            drawCalls.push(`    -- Note: More than 12 parameters are mapped but only 12 are displayed.`);
+            drawCommands.push({
+                type: 'text',
+                x: 10,
+                y: 60,
+                text: "Only 12 displayed",
+                shade: 8
+            });
+        }
+
+        // Build final Lua script
+        let finalScript = [];
+        finalScript.push('return {');
+        finalScript.push(`    name = '${presetName} UI script',`);
+        finalScript.push(`    author = 'chordsmaze',`);
+        finalScript.push(`    description = 'UI script for ${presetName} preset created by the UI Builder by chordsmaze',`);
+        finalScript.push('');
+        finalScript.push('    init = function()');
+        finalScript.push('        -- Get initial parameter values');
+        initCode.forEach(line => finalScript.push(line));
+        finalScript.push('        return true');
+        finalScript.push('    end,');
+        finalScript.push('');
+        controllerFuncs.forEach(line => finalScript.push(line));
+        if (!controllerFuncs.some(c => c.includes('button4Push'))) {
+            finalScript.push('    button4Push = function()');
+            finalScript.push('        exit()');
+            finalScript.push('    end,');
+        }
+        finalScript.push('');
+        finalScript.push('    draw = function()');
+        if (drawCalls.length === 0) {
+            finalScript.push('        -- No parameters mapped to display');
+        } else {
+            drawCalls.forEach(line => finalScript.push(line));
+        }
+        finalScript.push('    end');
+        finalScript.push('}');
+
+        let luaScript = script.join('\n') + '\n' + localVars.join('\n') + '\n' + finalScript.join('\n');
+        document.getElementById('luaScript').value = luaScript;
+
+        // Render preview after update
+        renderPreview();
+
+		shouldDisableDownloadButton();
+    } catch (e) {
+        console.error('Error generating script:', e);
+        document.getElementById('luaScript').value = NO_SCRIPT_MESSAGES.ERROR_GENERATING;
+        drawCommands = [];
+        renderPreview();
+		shouldDisableDownloadButton();
+    }
+}
+
+function ui_min_change(p) {
+    let minInput = document.getElementById("p" + p + "_ui_min");
+    let maxInput = document.getElementById("p" + p + "_ui_max");
+    let min = parseInt(minInput.value);
+    let max = parseInt(maxInput.value);
+    
+    // Validate min is less than max
+    if (min >= max) {
+        minInput.value = max - 1;
+    }
+    
+    // Validate within parameter bounds
+    let paramMin = parseInt(document.getElementById("p" + p + "_min").innerHTML);
+    let paramMax = parseInt(document.getElementById("p" + p + "_max").innerHTML);
+    
+    if (min < paramMin) minInput.value = paramMin;
+    if (min > paramMax) minInput.value = paramMax;
+    
+    saveLuaParams();
+    updateLuaScript();
+}
+
+function ui_max_change(p) {
+    let minInput = document.getElementById("p" + p + "_ui_min");
+    let maxInput = document.getElementById("p" + p + "_ui_max");
+    let min = parseInt(minInput.value);
+    let max = parseInt(maxInput.value);
+    
+    // Validate max is more than min
+    if (max <= min) {
+        maxInput.value = min + 1;
+    }
+    
+    // Validate within parameter bounds
+    let paramMin = parseInt(document.getElementById("p" + p + "_min").innerHTML);
+    let paramMax = parseInt(document.getElementById("p" + p + "_max").innerHTML);
+    
+    if (max < paramMin) maxInput.value = paramMin;
+    if (max > paramMax) maxInput.value = paramMax;
+    
+    saveLuaParams();
+    updateLuaScript();
+}
+
+function ui_invert_change(p) {
+    saveLuaParams();
+    updateLuaScript();
+}
+
+// Add the new function for nickname changes
+function ui_nickname_change(p) {
+    saveLuaParams();
+    updateLuaScript();
+}
+
+// Add event listener for preset name changes
+document.getElementById('preset_name').addEventListener('change', function() {
+    saveLuaParams();
+    updateLuaScript();
+});
+
+// Add after the existing script functions
+
+function saveLuaParams() {
+    let presetName = document.getElementById('preset_name').value.trim();
+    let currentSlot = selectedSlot;
+    
+    if (!presetName) {
+        console.warn('No preset name set');
+        return;
+    }
+
+    let storageKey = 'lua_params_' + presetName;
+    let allSlotParams = {};
+    try {
+        let existing = localStorage.getItem(storageKey);
+        if (existing) {
+            allSlotParams = JSON.parse(existing);
+        }
+    } catch (e) {
+        console.warn('Error loading existing params:', e);
+    }
+    
+    let slotParams = [];
+    
+    for (let i = 0; i < numParameters; i++) {
+        let controller = document.getElementById('p' + i + '_ui_controller');
+        if (controller && controller.value) {
+            let parameterControlOptions = document.getElementById('p' + i + '_e');
+            let pvString = document.getElementById('p' + i + '_pv');
+
+            let allControlOptions = [];
+            for (let option of parameterControlOptions.options) {
+                allControlOptions.push(option.text);
+            }
+
+            let param = {
+                paramIndex: i,
+                controllerType: controller.value,
+                min: document.getElementById('p' + i + '_ui_min').value,
+                max: document.getElementById('p' + i + '_ui_max').value,
+                invert: document.getElementById('p' + i + '_ui_invert').checked ? 1 : 0,
+				// remove symbols that are not allowed in Lua variable names
+                nickname: document.getElementById('p' + i + '_ui_nickname').value.trim().replace(/\/|:/g, ''),
+                name: document.getElementById('p' + i + '_name').innerHTML.replace(/\/|:/g, ''),
+                unit: document.getElementById('p' + i + '_unit').textContent || '',
+                allControlOptions
+            };
+            slotParams.push(param);
+        }
+    }
+    
+    allSlotParams[currentSlot] = slotParams;
+    localStorage.setItem(storageKey, JSON.stringify(allSlotParams));
+}
+
+function loadLuaParams() {
+    let presetName = document.getElementById('preset_name').value.trim();
+    let currentSlot = selectedSlot;
+    
+    if (!presetName) {
+        console.warn('No preset name set');
+        return;
+    }
+
+    let storageKey = 'lua_params_' + presetName;
+    let paramsJson = localStorage.getItem(storageKey);
+    
+    if (paramsJson) {
+        try {
+            let allSlotParams = JSON.parse(paramsJson);
+            let slotParams = allSlotParams[currentSlot] || [];
+            
+            // Clear all existing UI settings first
+            clearLuaParams();
+            
+            // Apply loaded settings for current slot
+            slotParams.forEach(param => {
+                if (param.paramIndex < numParameters) {
+                    document.getElementById('p' + param.paramIndex + '_ui_controller').value = param.controllerType;
+                    document.getElementById('p' + param.paramIndex + '_ui_min').value = param.min;
+                    document.getElementById('p' + param.paramIndex + '_ui_max').value = param.max;
+                    document.getElementById('p' + param.paramIndex + '_ui_invert').checked = param.invert === 1;
+                    document.getElementById('p' + param.paramIndex + '_ui_nickname').value = param.nickname || '';
+                }
+            });
+            
+            console.log('Loaded UI params for preset:', presetName, 'slot:', currentSlot);
+            
+            // Always update the script after loading params
+            updateLuaScript();
+        } catch (e) {
+            console.warn('Error parsing stored params:', e);
+        }
+    } else {
+        // Even if no params for this slot, still update script
+        // as there might be params for other slots
+        updateLuaScript();
+    }
+}
+
+function clearLuaParams() {
+    // Clear all UI Builder settings
+    for (let i = 0; i < numParameters; i++) {
+        let controller = document.getElementById('p' + i + '_ui_controller');
+        if (controller) {
+            controller.value = '';
+            document.getElementById('p' + i + '_ui_min').value = '';
+            document.getElementById('p' + i + '_ui_max').value = '';
+            document.getElementById('p' + i + '_ui_invert').checked = false;
+            document.getElementById('p' + i + '_ui_nickname').value = '';
+        }
+    }
+}
+
+function deleteLuaParams() {
+  let presetName = document.getElementById('preset_name').value.trim();
+  if (!presetName) {
+    console.warn('No preset name set; cannot delete mapping.');
+    return;
+  }
+  
+  if (!confirm("Are you sure you want to delete all saved mappings for this preset?")) {
+    return; // User canceled, do nothing
+  }
+
+  let storageKey = 'lua_params_' + presetName;
+  localStorage.removeItem(storageKey);
+  clearLuaParams();
+  updateLuaScript();
+  console.log('Mappings deleted for preset:', presetName);
+}
+
+// Add function to hide UI Builder columns
+function hideUIBuilderColumns() {
+    const elements = document.querySelectorAll('.map_ui_lua');
+    elements.forEach(element => {
+        element.style.display = 'none';
+    });
+}
+
+// Add function to show UI Builder columns
+function showUIBuilderColumns() {
+    const elements = document.querySelectorAll('.map_ui_lua');
+    elements.forEach(element => {
+        element.style.display = 'table-cell';
+    });
+}
+
+// Update the show_ui_lua change handler
+document.getElementById('show_ui_lua').addEventListener('change', function() {
+    if (this.checked) {
+        showUIBuilderColumns();
+        loadLuaParams();
+    } else {
+        hideUIBuilderColumns();
+    }
+    updateLuaScript();
+});
+
+// download function after the updateLuaScript function
+function downloadLuaScript() {
+    let presetName = document.getElementById('preset_name').value.trim() || 'unnamed';
+    let luaScript = document.getElementById('luaScript').value;
+    
+    // Create a blob with the script content
+    const blob = new Blob([luaScript], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `${presetName}_ui.lua`;
+    
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 }
 </script>
 
@@ -1226,13 +2114,20 @@ function onMIDISuccess(midiAccess) {
     status("OK");
     initView();
 
-    // Set the slot number from the query string
+    // Set the selectedSlot from the query string
     let { slot } = getQueryParams();
-    if (slot){
-      document.getElementById('slot').value = Number(slot) - 1;
+    if (slot) {
+        // Convert from 1-based to 0-based indexing
+        selectedSlot = Number(slot) - 1;
+        highlightSelectedSlot();
     }
 
     request();
+    
+    // Always try to update script after initial load
+    setTimeout(() => {
+        updateLuaScript();
+    }, 1000);
 }
 function onMIDIFailure(e) {
 	log( "midi access failure" );
@@ -1304,9 +2199,8 @@ function addAlgorithm() {
 }
 
 function removeAlgorithm() {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x33, slot, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x33, selectedSlot, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent remove algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1345,17 +2239,17 @@ function savePreset( option ) {
 }
 
 function moveAlgorithmUp() {
-	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x37, slot, slot-1, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x37, selectedSlot, selectedSlot-1, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent move algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 function changeSlot() {
+    parametersLoaded = false;
     initView();
-	request();
+    request();
 }
 
 function onMIDIMessage(message) {
@@ -1366,7 +2260,6 @@ function onMIDIMessage(message) {
     		return;
     	}
     }
-	let slot = document.getElementById( 'slot' ).value;
 	let rxSlot = data[7];
 	let dd = log( "received sysex (" + data.length + " bytes)" );
 	dumpSysex( data, "rxSysex", dd+"\n" );
@@ -1375,39 +2268,39 @@ function onMIDIMessage(message) {
 	} else if ( data[6] == 0x31 ) {
 		processAlgorithmInfo( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x40 ) {
-		if ( routingAnalysisMode || ( rxSlot == slot ) ) {
+		if ( routingAnalysisMode || ( rxSlot == selectedSlot ) ) {
 			processAlgorithm( rxSlot, data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x41 ) {
     	processPresetName( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x42 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processNumParameters( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x43 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processParameterInfo( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x44 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processAllParameterValues( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x45 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processParameterValue( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x48 ) {
 		processUnitStrings( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x49 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processEnumStrings( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x4B ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processMapping( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x50 ) {
-		if ( rxSlot == slot ) {
+		if ( rxSlot == selectedSlot ) {
 			processParameterValueString( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x60 ) {
@@ -1434,8 +2327,7 @@ function refresh() {
 }
 function request() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let slot = document.getElementById( 'slot' ).value;
-
+	
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent algorithm names request to disting NT" );
@@ -1451,7 +2343,7 @@ function request() {
 	var dd = log( "sent unit strings request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, slot, 0xF7 ];
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, selectedSlot, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent num parameters request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1495,17 +2387,29 @@ function sendMsg() {
 }
 
 function getQueryParams() {
-  const queryString = window.location.search; // Get the part after the "?"
-  const urlParams = new URLSearchParams(queryString);
-  const params = {};
-
-  // Iterate through all the query parameters
-  for (const [key, value] of urlParams.entries()) {
-    params[key] = value;
-  }
-
-  return params;
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const params = {};
+    
+    for (const [key, value] of urlParams.entries()) {
+        if (key === 'slot') {
+            // Ensure slot is within valid range (1-32)
+            const slotNum = parseInt(value);
+            if (slotNum >= 1 && slotNum <= 32) {
+                params[key] = slotNum;
+            }
+        } else {
+            params[key] = value;
+        }
+    }
+    
+    return params;
 }
+
+// Call buildSlotGrid after DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    buildSlotGrid();
+});
 </script>
 
 </body>
