@@ -68,6 +68,8 @@ try:
 except FileNotFoundError:
 	pass
 
+docs = [ d.replace( '"', '\\"' ) for d in docs ]
+
 def computeCodeSize( lines ):
 	size = 0
 	for line in lines:
