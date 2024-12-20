@@ -7,7 +7,7 @@
 "pot3": "Rate",
 "description": "The flanger produces a swept delay that approaches zero delay.",
 "code_size": 667,
-"build_date": "2024-12-19 11:39:23.431332+00:00",
+"build_date": "2024-12-20 08:34:14.398481+00:00",
 "toolchain": "arm-none-eabi-c++ (GNU Tools for ARM Embedded Processors) 5.4.1 20160919 (release) [ARM/embedded-5-branch revision 240496]",
 "abi_version": "2",
 "code":[
