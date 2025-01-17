@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<head>
+
+<title>disting NT Lua Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans">
+
+<style>
+body {
+	font-family: 'PT Sans', serif;
+}
+button {
+	font-family: 'PT Sans', serif;
+}
+button.big {
+	font-size: 120%;
+}
+select {
+	font-family: 'PT Sans', serif;
+}
+div.small {
+	font-size: 80%;
+}
+td.tc {
+	text-align: center;
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+tr.a {
+	background-color: #e0e0e0;
+}
+th {
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+textarea {
+    font-family: monospace;
+}
+</style>
+
+<script>
+function log( t ) {
+	var ta = document.getElementById( "log" );
+	var d = new Date();
+	var dd = d.toLocaleTimeString();
+	ta.value = ta.value + "\n" + dd + ": " + t;
+	ta.scrollTop = ta.scrollHeight;
+	return dd;
+}
+function status( t ) {
+    document.getElementById( "status" ).innerHTML = "Web MIDI status: " + t;
+}
+function nybbleChar( n ) {
+	if ( n >= 10 ) {
+		return String.fromCharCode( 'A'.charCodeAt( 0 ) + n - 10 );
+	}
+	return String.fromCharCode( '0'.charCodeAt( 0 ) + n );
+}
+function makeMsgSysEx() {
+	var d = [0xF0, 0x00, 0x21, 0x27, 0x6D, 0x02]
+	var len = d.length
+	var str = ""
+	for ( var i = 0; i < len; ++i ) {
+		str += String.fromCharCode( d[i] );
+	} 
+	var text = "Hello!\nThis message\nwas sent from\nthe config tool.";
+	str += text;
+	str += String.fromCharCode( 0xF7 );
+	return str;
+}
+function dumpSysex( data, id, prefix ) {
+	var len = data.length
+	var h = prefix
+	for ( var i = 0; i < len; ++i ) {
+		var b = data[ i ];
+		h += nybbleChar( b >> 4 );
+		h += nybbleChar( b & 0xf );
+		h += " ";
+		if ( ( i & 0xf ) === 0xf ) {
+			h += "\n";
+		}
+	} 
+	document.getElementById( id ).value = h;
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="small">
+At the time of writing this will work only in Google's <a href="http://www.google.com/chrome/">Chrome</a> browser. Chrome may block SysEx access if you run this from a website, in which case download the html file locally and run it from there.
+</div>
+<div class="small" id="status"></div>
+<p>
+
+<label for="midioutput">Send to MIDI port:</label>
+<select id="midioutput" onchange='changeOutput()' accesskey="o"></select>
+<label for="midiinput">Listen on MIDI port: </label>
+<select id="midiinput" onchange='changeInput()' accesskey="i"></select>
+<label for="sysExId">SysEx ID: </label>
+<select id="sysExId" onchange='changeSysExId()' accesskey="s">
+<script>
+for ( let i=0; i<127; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" );
+}
+</script>
+</select>
+<p>
+<textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
+<textarea rows=5 cols=45 name="text" id="txSysex" readOnly></textarea>
+<textarea rows=5 cols=45 name="text" id="rxSysex" readOnly></textarea>
+<p>
+<textarea rows=20 cols=100 id="console" onkeypress="return onKeyPress(event);">&gt; </textarea>
+<p>
+
+<script>
+var lineStart = 0;
+var lastLine = "";
+
+document.getElementById( 'console' ).addEventListener( 'keydown', keyListener );
+
+function keyListener( e ) {
+	if ( e.key == 'ArrowUp' ) {
+		let ta = document.getElementById( 'console' );
+		ta.value = ta.value.substring( 0, lineStart + 2 ) + lastLine;
+		e.preventDefault();
+	}
+}
+
+function onKeyPress( e ) {
+	let ta = document.getElementById( 'console' );
+	if ( e.key == 'Enter' ) {
+		let content = ta.value;
+		if ( e.shiftKey ) {
+			ta.value = content + "\n";
+			return false;
+		}
+		let line = content.substring( lineStart );
+		if ( line[0] == '>' ) {
+			line = line.substring( 1 );
+		}
+		line = line.trim()
+		sendLine( line );
+		lastLine = line;
+		lineStart = content.length + 1;
+		ta.value = content + "\n> ";
+		return false;
+	} else if ( e.key == 'l' ) {
+		lineStart = 0;
+		ta.value = "> ";
+		return false;
+	}
+	return true;
+}
+</script>
+
+<script>
+var midi, data;
+const dntMIDIInKey = "dntMIDIInKey";
+const dntMIDIOutKey = "dntMIDIOutKey";
+const dexSysExKey = "dexSysExKey";
+const defaultDntPortName = "disting NT";
+
+var dexInPortName = defaultDntPortName;
+var dexOutPortName = defaultDntPortName;
+var sysExId;
+
+// debugging only:
+// localStorage.removeItem(dntMIDIInKey);
+// localStorage.removeItem(dntMIDIOutKey);
+// localStorage.removeItem(dexSysExKey);
+
+if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
+// alert("saving in port");
+    localStorage.setItem(dntMIDIInKey, defaultDntPortName);
+} 
+else {
+    dexInPortName = localStorage.getItem(dntMIDIInKey);
+// alert("retrieved in port name = " + dexInPortName);
+}
+
+if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
+// alert("saving out port name");
+    localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
+} 
+else {
+    dexOutPortName = localStorage.getItem(dntMIDIOutKey);
+// alert("retrieved out port name = " + dexOutPortName);
+}
+
+if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
+// alert("saving system exclusive ID);
+    localStorage.setItem(dexSysExKey, 0);
+} 
+sysExId = localStorage.getItem(dexSysExKey);
+
+if ( navigator.requestMIDIAccess ) {
+    navigator.requestMIDIAccess ( {
+        sysex: true
+    } ).then(onMIDISuccess, onMIDIFailure);
+} else {
+    status("No MIDI support in your browser.");
+}
+function onMIDISuccess(midiAccess) {
+    midi = midiAccess;
+    let str = "";
+    let dex = -1;
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+	    str += "<option value='" + input.value.id + "'>" + input.value.name + "</option>";
+	    if ( input.value.name == dexInPortName) {
+		    dex = input.value.id;
+	    }
+    }
+    document.getElementById( "midiinput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midiinput" ).value = dex;
+    }
+
+    str = "";
+    dex = -1;
+    let outputs = midi.outputs.values();
+
+    for ( var output = outputs.next(); output && !output.done; output = outputs.next() ) {
+	    str += "<option value='" + output.value.id + "'>" + output.value.name + "</option>";
+	    if ( output.value.name == dexOutPortName) {
+		    dex = output.value.id;
+	    }
+    }
+    document.getElementById( "midioutput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midioutput" ).value = dex;
+    }
+
+	document.getElementById("sysExId").selectedIndex = sysExId;
+	changeInput();
+
+	log( "midi access granted" );
+    status("OK");
+}
+function onMIDIFailure(e) {
+	log( "midi access failure" );
+    status("No access to MIDI devices or your browser doesn't support WebMIDI API.");
+}
+function changeInput() {
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+    	input.value.onmidimessage = "";
+    }
+	var input = midi.inputs.get( document.getElementById( "midiinput" ).value );
+	input.onmidimessage = onMIDIMessage;
+
+	// Save the current port setting
+	let inputSelector = document.getElementById("midiinput"); 
+let selectedPortName = inputSelector.options[inputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIInKey, selectedPortName);
+}
+function changeOutput() {
+let outputSelector = document.getElementById("midioutput"); 
+let selectedPortName = outputSelector.options[outputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIOutKey, selectedPortName);
+}
+
+function changeSysExId() {
+	sysExId = document.getElementById( "sysExId" ).value;
+   localStorage.setItem(dexSysExKey, sysExId);
+}
+function onMIDIMessage(message) {
+    data = message.data;
+    var header = [ 240, 0, 33, 39, 0x6D, sysExId ];
+    for ( var i=0; i<6; ++i ) {
+    	if ( header[i] != data[i] ) {
+    		return;
+    	}
+    }
+	var dd = log( "received sysex (" + data.length + " bytes)" );
+	dumpSysex( data, "rxSysex", dd+"\n" );
+	if ( data[6] == 0x09 ) {
+	    let str = String.fromCharCode.apply( null, data.slice( 7, -1 ) );
+	    if ( str.length > 0 ) {
+			let ta = document.getElementById( 'console' );
+			let content = ta.value;
+			if ( content.substring( content.length - 2 ) == "> " ) {
+				content = content.substring( 0, content.length - 2 );
+			}
+			content += str + '\n';
+			lineStart = content.length;
+			ta.value = content + "> ";
+		}
+	}
+}
+function sendLine( line ) {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x08 ];
+	for ( let i = 0; i < line.length; ++i ) {
+		arr.push( line.charCodeAt( i ) );
+	}
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent line to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+</script>
+
+</body>
