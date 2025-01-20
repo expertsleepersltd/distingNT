@@ -112,6 +112,15 @@ for ( let i=0; i<127; ++i ) {
 <p>
 <textarea rows=20 cols=100 id="console" onkeypress="return onKeyPress(event);">&gt; </textarea>
 <p>
+Ctrl+L to clear. Up arrow for last command.
+<p>
+<hr>
+<button class="big" onclick="refresh()">Refresh</button>
+<label for="slot">Algorithm:</label>
+<select id="slot"><option>TODO: currently installs to first Lua algorithm in preset</option></select>
+<button class="big" onclick="install()">Install Program</button> or Ctrl+Enter
+<p>
+<textarea rows=20 cols=100 id="program" onkeypress="return onKeyPressProgram(event);"></textarea>
 
 <script>
 var lineStart = 0;
@@ -151,6 +160,12 @@ function onKeyPress( e ) {
 		return false;
 	}
 	return true;
+}
+
+function onKeyPressProgram( e ) {
+	if ( e.key == 'Enter' && e.ctrlKey ) {
+		install();
+	}
 }
 </script>
 
@@ -300,6 +315,18 @@ function sendLine( line ) {
 	arr.push( 0xF7 );
 	output.send( arr );
 	let dd = log( "sent line to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+function install() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x09, 0x00 /*slot*/ ];
+	let content = document.getElementById( 'program' ).value
+	for ( let i = 0; i < content.length; ++i ) {
+		arr.push( content.charCodeAt( i ) & 127 );
+	}
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent program to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
