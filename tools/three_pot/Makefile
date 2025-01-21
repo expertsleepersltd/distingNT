@@ -27,7 +27,7 @@ objects := $(patsubst %.spn,%.o,$(inputs))
 cpps := $(patsubst %.spn,%.cpp,$(inputs))
 hexs := $(patsubst %.spn,%.hex,$(inputs))
 
-SPN_TO_C_PATH := ../../../spn_to_c
+SPN_TO_C_PATH := ../spn_to_c
 
 INCLUDE_PATH := $(SPN_TO_C_PATH)/include
 
