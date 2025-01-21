@@ -154,7 +154,7 @@ function onKeyPress( e ) {
 		lineStart = content.length + 1;
 		ta.value = content + "\n> ";
 		return false;
-	} else if ( e.key == 'l' ) {
+	} else if ( e.key == 'l' && e.ctrlKey ) {
 		lineStart = 0;
 		ta.value = "> ";
 		return false;
