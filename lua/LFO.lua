@@ -23,30 +23,35 @@ SOFTWARE.
 ]]
 
 --[[
-Example of a script where everything happens in `trigger()`; there is no `step()`.
+Mainly intended as an example of the two different output modes, stepped and linear.
 ]]
 
 return
 {
-	name = 'SRflipflop'
+	name = 'LFO'
 ,	author = 'Expert Sleepers Ltd'
 	
 ,	init = function( self )
+		self.t = 0.0
 		return
 		{
-			inputs = { kTrigger, kTrigger }
-		,	outputs = 1
+			inputs = 1
+		,	outputs = { kStepped, kLinear }
 		}
 	end
-	
-,	trigger = function( self, input )
-		self.state = input > 1
-		local v = self.state and 5.0 or 0.0
-		return { v }
-	end
 
-,	draw = function( self )
-		drawText( 100, 40, self.state and "High" or "Low" )
+,	step = function( self, dt, inputs )
+		local f = 1 + inputs[1]
+		local t = self.t + dt * f
+		if t >= 1.0 then
+			t = t - 1.0
+		elseif t < 0.0 then
+			t = t + 1.0
+		end
+		self.t = t
+		local sqr = t > 0.5 and 5.0 or -5.0
+		local tri = 20 * math.min( t, 1 - t ) - 5
+		return { sqr, tri }
 	end
 
 }

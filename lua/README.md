@@ -3,11 +3,6 @@ Lua scripts for the disting NT module.
 
 Install into `programs/lua` on the MicroSD card.
 
-© 2025 Expert Sleepers Ltd
+See individual files for licensing information.
 
-Released under the MIT License. See [LICENSE](LICENSE) for details.
-
-## SR flip flop
-[SRflipflop.lua](SRflipflop.lua)
-
-Example of a script where everything happens in `trigger()`; there is no `step()`.
+For support, you are encouraged to visit the `#disting-nt-lua-scripting` channel on our Discord server.
