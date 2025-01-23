@@ -759,7 +759,8 @@ function processNumParameters( data ) {
 		str += "<td id=p" + i + "_min>" + "</td>";
 		str += "<td id=p" + i + "_max>" + "</td>";
 		var focus = " onfocus='param_focus(" + i + ")' ";
-		str += "<td><button id=p" + i + "_def class='param_def' onclick='param_def(" + i + ")'" + focus + "></button></td>";
+		str += "<td><button id=p" + i + "_def class='param_def' onclick='param_def(" + i + ")'" + focus + "></button>";
+		str += "<div id=p" + i + "_scl class='hidden'>1</div></td>";
 		str += "<td id=p" + i + "_unit>" + "</td>";
 		str += "<td><input id=p" + i + "_v type='number' class='param_v' size=6 onchange='param_text(" + i + ")'" + focus + ">" + "</td>";
 		str += "<td>";
@@ -870,19 +871,25 @@ function processParameterInfo( data ) {
 	var def = extractShort( data.slice( 9, 12 ) );
 	var unit = data[12];
 	var name = "";
-	for ( var i = 0; i < 24; ++i ) {
+	let i;
+	for ( i = 0; i < 24; ++i ) {
 		var n = data[13+i];
 		if ( n == 0 ) {
+			++i;
 			break;
 		}
 		name += String.fromCharCode( n );
 	}
+	let scaling = 1;
+	if ( 13+i < data.length )
+		scaling = 10 ** data[13+i];
 	if ( name.length == 0 ) {
 		document.getElementById( "row" + p ).style='display:none;';
 	}
-	document.getElementById( "p" + p + "_min" ).innerHTML = min;
-	document.getElementById( "p" + p + "_max" ).innerHTML = max;
-	document.getElementById( "p" + p + "_def" ).innerHTML = def;
+	document.getElementById( "p" + p + "_min" ).innerHTML = Number(min) / scaling;
+	document.getElementById( "p" + p + "_max" ).innerHTML = Number(max) / scaling;
+	document.getElementById( "p" + p + "_def" ).innerHTML = Number(def) / scaling;
+	document.getElementById( "p" + p + "_scl" ).innerHTML = scaling;
 	var unitStr = "";
 	if ( unit < 1 && min == 0 && max == 1 ) {
 		var e = document.getElementById( "p" + p + "_c" );
@@ -919,7 +926,8 @@ function processAllParameterValues( data ) {
 		if ( document.getElementById( "p" + p + "_v" ) == null ) {
 			continue;
 		}
-		document.getElementById( "p" + p + "_v" ).value = v;
+		let scl = document.getElementById( "p" + p + "_scl" ).innerHTML;
+		document.getElementById( "p" + p + "_v" ).value = v / scl;
 	    document.getElementById( "p" + p + "_s" ).value = v;
 	    document.getElementById( "p" + p + "_e" ).value = v;
 	    document.getElementById( "p" + p + "_c" ).checked = v;
@@ -929,7 +937,8 @@ function processAllParameterValues( data ) {
 function processParameterValue( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let v = extractShort( data.slice( 3, 6 ) );
-    document.getElementById( "p" + p + "_v" ).value = v;
+	let scl = document.getElementById( "p" + p + "_scl" ).innerHTML;
+    document.getElementById( "p" + p + "_v" ).value = v / scl;
     document.getElementById( "p" + p + "_s" ).value = v;
     document.getElementById( "p" + p + "_e" ).value = v;
     document.getElementById( "p" + p + "_c" ).checked = v;
@@ -995,7 +1004,8 @@ function sendSetValue( p, v ) {
 }
 
 function param_def( p ) {
-	var v = document.getElementById( "p" + p + "_def" ).innerHTML;
+	let v = document.getElementById( "p" + p + "_def" ).innerHTML;
+	v *= document.getElementById( "p" + p + "_scl" ).innerHTML;
 	sendSetValue( p, v );
 }
 
@@ -1015,7 +1025,8 @@ function param_check( p ) {
 }
 
 function param_text( p ) {
-	var v = document.getElementById( "p" + p + "_v" ).value;
+	let v = document.getElementById( "p" + p + "_v" ).value;
+	v *= document.getElementById( "p" + p + "_scl" ).innerHTML;
 	sendSetValue( p, v );
 }
 
