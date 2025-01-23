@@ -294,7 +294,11 @@ function processAlgorithm( slot, data ) {
 		}
 		name += String.fromCharCode( n );
 	}
-	document.getElementById( "slot_name" ).value = name;
+	if ( routingAnalysisMode ) {
+		slotNames[ slot ] = name;
+	} else {
+		document.getElementById( "slot_name" ).value = name;
+	}
 }
 
 function processPresetName( data ) {
@@ -381,11 +385,13 @@ function processAlgorithmInfo( data ) {
 var slotCount = 0;
 var routingInfo = [];
 var guids = [];
+var slotNames = [];
 
 function processSlotCount( data ) {
 	slotCount = data[0];
 	routingInfo = [];
 	guids = [];
+	slotNames = [];
 
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 	for ( let i=0; i<slotCount; ++i ) {
@@ -552,7 +558,7 @@ function buildRoutingInfo() {
 		str += "</tr>";
 		str += "<tr class='routingSlot'>";
 		str += "<td class='routingSlotName'><button onclick='editSlot(" + s + ")'>" + (s+1) + "</button></td>";
-		str += "<td class='routingSlotName'>" + factories[ guids[s] ][3][0] + "</td>";
+		str += "<td class='routingSlotName'>" + slotNames[s] + "</td>";
 		let used = r[0] | r[5] | outputMask;
 		for ( let i=1; i<=28; ++i ) {
 			let ch = i;
