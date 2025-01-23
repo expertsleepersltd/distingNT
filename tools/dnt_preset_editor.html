@@ -540,7 +540,7 @@ function buildRoutingInfo() {
 		}
 		str += "</tr>";
 		str += "<tr class='routingSlot'>";
-		str += "<td class='routingSlotName'>" + (s+1) + "</td>";
+		str += "<td class='routingSlotName'><button onclick='editSlot(" + s + ")'>" + (s+1) + "</button></td>";
 		str += "<td class='routingSlotName'>" + factories[ guids[s] ][3][0] + "</td>";
 		let used = r[0] | r[5] | outputMask;
 		for ( let i=1; i<=28; ++i ) {
@@ -577,6 +577,11 @@ function buildRoutingInfo() {
 	str += heading2;
 	str += "</table>";
 	document.getElementById( 'routingAnalysisContent' ).innerHTML = str;
+}
+
+function editSlot( s ) {
+	document.getElementById( "slot" ).value = s;
+	showSlotEditor();
 }
 
 function showMappings( n ) {
