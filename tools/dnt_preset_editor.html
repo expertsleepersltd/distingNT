@@ -752,6 +752,10 @@ function getNextParameter() {
 
 	nextParameterToGet += 1;
 	if ( nextParameterToGet >= numParametersToGet ) {
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x44, slot, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent parameter values request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
 		return;
 	}
 	setTimeout( getNextParameter, 20 );
@@ -837,13 +841,6 @@ function processNumParameters( data ) {
 	nextParameterToGet = 0;
 	numParametersToGet = num;
 	setTimeout( getNextParameter, 20 );
-
-	let slot = document.getElementById( 'slot' ).value;
-	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x44, slot, 0xF7 ];
-	output.send( arr );
-	let dd = log( "sent parameter values request to disting NT" );
-	dumpSysex( arr, "txSysex", dd+"\n" );
 
 	refreshMappingVisibility();
 	mappingRefreshed = false;
