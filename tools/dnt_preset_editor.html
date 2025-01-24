@@ -216,6 +216,8 @@ for ( let i=0; i<32; ++i ) {
 <input id='show_mapping_midi' type='checkbox' accesskey="m" onchange="toggleMappings('midi')">
 <label for="show_mapping_i2c">Show I2C mappings:</label>
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
+<label for="show_pages">Show as:</label>
+<select id="show_pages" onchange='changePages()'><option value='false'>Flat list</option><option value='true'>Pages</option></select>
 <br>
 <label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
 <p>
@@ -769,7 +771,31 @@ function processNumParameters( data ) {
 		return;
 	}
 	numParameters = num;
-	var str = "<table>";
+	let str = "<table>";
+	str += parameterTableHeader();
+	str += "<tbody>";
+
+	for ( let i=0; i<num; ++i ) {
+		str += "<tr id=row" + i + " class=" + ((i&1)?"a":"b") + ">";
+		str += tableRowForParameter( i );
+		str += "</tr>";
+	}
+
+	str += "</tbody></table>";
+	document.getElementById( "parameters" ).innerHTML = str;
+	nextParameterToGet = 0;
+	numParametersToGet = num;
+	setTimeout( getNextParameter, 20 );
+
+	refreshMappingVisibility();
+	mappingRefreshed = false;
+	if ( anyMappingVisible() ) {
+		requestMapping();
+	}
+}
+
+function parameterTableHeader() {
+	let str = "";
 	str += "<thead>";
 	str += "<tr><th colspan=8>Preset</th><th colspan=5 class='map_cv'>CV Mapping</th><th colspan=6 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
 	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
@@ -777,10 +803,13 @@ function processNumParameters( data ) {
 	str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
 	str += "</tr>";
-	str += "</thead><tbody>";
+	str += "</thead>";
+	return str;
+}
 
-	for ( let i=0; i<num; ++i ) {
-		str += "<tr id=row" + i + " class=" + ((i&1)?"a":"b") + "><td>" + (i+1) + "</td>";
+function tableRowForParameter( i ) {
+	str = "";
+		str += "<td>" + (i+1) + "</td>";
 		str += "<td id=p" + i + "_name><h1>" + "</h1></td>";
 		str += "<td id=p" + i + "_min>" + "</td>";
 		str += "<td id=p" + i + "_max>" + "</td>";
@@ -834,19 +863,7 @@ function processNumParameters( data ) {
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
 
-		str += "</tr>";
-	}
-	str += "</tbody></table>";
-	document.getElementById( "parameters" ).innerHTML = str;
-	nextParameterToGet = 0;
-	numParametersToGet = num;
-	setTimeout( getNextParameter, 20 );
-
-	refreshMappingVisibility();
-	mappingRefreshed = false;
-	if ( anyMappingVisible() ) {
-		requestMapping();
-	}
+	return str;
 }
 
 function initView() {
@@ -974,6 +991,50 @@ function processParameterValueString( data ) {
 		name += String.fromCharCode( n );
 	}
     document.getElementById( "p" + p + "_pv" ).innerHTML = name;
+}
+
+function processParameterPages( data ) {
+	let str = "<table>";
+	str += parameterTableHeader();
+	str += "<tbody>";
+
+	let clas = 0;
+	let c = 0;
+	let num = 0;
+	let numPages = data[c++];
+	for ( let p=0; p<numPages; ++p ) {
+		let name = "";
+		for ( let i = 0; i < 32; ++i ) {
+			let n = data[c++];
+			if ( n == 0 ) {
+				break;
+			}
+			name += String.fromCharCode( n );
+		}
+		str += "<tr><th colspan=2>" + name + "</th></tr>";
+		let nump = data[c++];
+		for ( let i=0; i<nump; ++i ) {
+			let pp = data[c++];
+			str += "<tr id=row" + pp + " class=" + ((clas&1)?"a":"b") + ">";
+			str += tableRowForParameter( pp );
+			str += "</tr>";
+			clas++;
+			num = Math.max( num, pp+1 );
+		}
+	}
+
+	str += "</tbody></table>";
+
+	document.getElementById( "parameters" ).innerHTML = str;
+	nextParameterToGet = 0;
+	numParametersToGet = num;
+	setTimeout( getNextParameter, 20 );
+
+	refreshMappingVisibility();
+	mappingRefreshed = false;
+	if ( anyMappingVisible() ) {
+		requestMapping();
+	}
 }
 
 function requestParameterValue( p ) {
@@ -1197,6 +1258,7 @@ const dntMIDIInKey = "dntMIDIInKey";
 const dntMIDIOutKey = "dntMIDIOutKey";
 const dexSysExKey = "dexSysExKey";
 const defaultDntPortName = "disting NT";
+const dntPagesKey = "dntUsePages";
 
 var dexInPortName = defaultDntPortName;
 var dexOutPortName = defaultDntPortName;
@@ -1219,11 +1281,22 @@ else {
 if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
     localStorage.setItem(dexSysExKey, 0);
 }
-else {
-    sysExId = localStorage.getItem(dexSysExKey);
-}
+sysExId = localStorage.getItem(dexSysExKey);
 
 var sendRTC = true;
+var usePages = false;
+
+if(!localStorage.getItem(dntPagesKey)) {  // No system exclusive ID stored
+    localStorage.setItem(dntPagesKey, false);
+}
+usePages = localStorage.getItem(dntPagesKey);
+document.getElementById( 'show_pages' ).value = usePages;
+
+function changePages() {
+	usePages = document.getElementById( 'show_pages' ).value;
+    localStorage.setItem(dntPagesKey, usePages);
+	refresh();
+}
 
 if ( navigator.requestMIDIAccess ) {
     navigator.requestMIDIAccess ( {
@@ -1455,6 +1528,10 @@ function onMIDIMessage(message) {
 		if ( rxSlot == slot ) {
 			processParameterValueString( data.slice( 8, -1 ) );
 		}
+	} else if ( data[6] == 0x52 ) {
+		if ( rxSlot == slot ) {
+			processParameterPages( data.slice( 8, -1 ) );
+		}
 	} else if ( data[6] == 0x60 ) {
 		processSlotCount( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x61 ) {
@@ -1496,10 +1573,18 @@ function request() {
 	var dd = log( "sent unit strings request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, slot, 0xF7 ];
-	output.send( arr );
-	var dd = log( "sent num parameters request to disting NT" );
-	dumpSysex( arr, "txSysex", dd+"\n" );
+	if ( usePages == 'true' ) {
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, slot, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent parameter pages request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
+	else {
+		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, slot, 0xF7 ];
+		output.send( arr );
+		let dd = log( "sent num parameters request to disting NT" );
+		dumpSysex( arr, "txSysex", dd+"\n" );
+	}
 
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x30, 0xF7 ];
 	output.send( arr );
