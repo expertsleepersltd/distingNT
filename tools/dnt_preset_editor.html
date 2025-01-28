@@ -1027,7 +1027,8 @@ function processParameterPages( data ) {
 		str += "<tr><th colspan=2>" + name + "</th></tr>";
 		let nump = data[c++];
 		for ( let i=0; i<nump; ++i ) {
-			let pp = data[c++];
+			let pp = ( data[c] << 7 ) | data[c+1];
+			c += 2;
 			str += "<tr id=row" + pp + " class=" + ((clas&1)?"a":"b") + ">";
 			str += tableRowForParameter( pp );
 			str += "</tr>";
