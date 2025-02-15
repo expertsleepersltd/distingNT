@@ -1,9 +1,9 @@
--- Combined AE Random Voltage & Gates (Multi-Seq) with Revised Bipolar, UI, and Active Step Highlight
+-- Combined AE Random Voltage & Gates (Multi-Seq) with Independent Seq Indices and Enhanced Active Step UI
 local NUM_SEQUENCES = 20
 local MAX_STEPS = 32
 
-local OUTPUT_BUFFER = {0, 0}  -- Preallocated output buffer for step()
-local lastActiveIndex = 1     -- Tracks the last active sequence index
+local OUTPUT_BUFFER = { 0, 0 } -- Preallocated output buffer for step()
+local lastActiveVoltIndex = 1 -- Tracks last active voltage sequence index
 
 -- Tables to hold 20 voltage sequences and 20 gate sequences.
 local voltageSequences = {}
@@ -21,7 +21,7 @@ local function randomizeVoltageSequence(seq)
   end
 end
 
--- Utility for the gate part.
+-- Randomize a gate sequence.
 local function randomizeGateSequence(seq)
   for i = 1, MAX_STEPS do
     seq.steps[i] = math.random(100)
@@ -58,14 +58,11 @@ local function updateVoltageCached(seq, resolution, minV, maxV, polarity)
   local effectiveMin, effectiveMax = getEffectiveRange(minV, maxV, polarity)
   local fraction
   if polarity == 2 then
-    -- Bipolar: map full raw range [-32768,32767] to [0,1]
     fraction = (raw + 32768) / 65535
   elseif polarity == 1 then
-    -- Positive: clamp negatives to 0; map [0,32767] to [0,1]
     local clamped = raw < 0 and 0 or raw
     fraction = clamped / 32767
   elseif polarity == 3 then
-    -- Negative: clamp positives to 0; map [-32768,0] to [0,1]
     local clamped = raw > 0 and 0 or raw
     fraction = (clamped + 32768) / 32768
   end
@@ -95,7 +92,8 @@ end
 local function globalRandomize(self)
   for i = 1, NUM_SEQUENCES do
     randomizeVoltageSequence(voltageSequences[i])
-    updateVoltageCached(voltageSequences[i], self.parameters[6], self.parameters[3], self.parameters[4], self.parameters[5])
+    updateVoltageCached(voltageSequences[i], self.parameters[7], self.parameters[4], self.parameters[5],
+      self.parameters[6])
     randomizeGateSequence(gateSequences[i])
   end
 end
@@ -103,76 +101,83 @@ end
 return {
   name = "Combined AE Random Voltage & Gates (Multi-Seq)",
   author = "Modified from Andras Eichstaedt / Thorinside / 4o",
-  
+
   init = function(self)
     initSequences()
     return {
-      -- Three inputs: 
+      -- Three inputs:
       -- 1 = clock (stepping), 2 = reset trigger, 3 = global randomize trigger
       inputs = { kGate, kTrigger, kTrigger },
       outputs = { kStepped, kGate },
       encoders = { 1, 2 },
       parameters = {
-        {"Active Seq Index", 1, NUM_SEQUENCES, 1, kInt},
-        {"Voltage Steps", 1, MAX_STEPS, 8, kInt},
-        {"Min Voltage", -10, 10, -1, kVolts},
-        {"Max Voltage", -10, 10, 1, kVolts},
-        {"Polarity", {"Positive", "Bipolar", "Negative"}, 2, kEnum},
-        {"Bit Depth (Voltage)", 2, 16, 16, kInt},
-        {"Gate Steps", 1, MAX_STEPS, 16, kInt},
-        {"Threshold", 1, 100, 50, kPercent},
-        {"Gate Length", 5, 1000, 100, kMs},
-        {"Global Randomize", {"Off", "On"}, 1, kEnum},
+        { "Active Volt Seq Index", 1,                                   NUM_SEQUENCES, 1,    kInt },
+        { "Active Gate Seq Index", 1,                                   NUM_SEQUENCES, 1,    kInt },
+        { "Voltage Steps",         1,                                   MAX_STEPS,     8,    kInt },
+        { "Min Voltage",           -10,                                 10,            -1,   kVolts },
+        { "Max Voltage",           -10,                                 10,            1,    kVolts },
+        { "Polarity",              { "Positive", "Bipolar", "Negative" }, 2,           kEnum },
+        { "Bit Depth (Voltage)",   2,                                   16,            16,   kInt },
+        { "Gate Steps",            1,                                   MAX_STEPS,     16,   kInt },
+        { "Threshold",             1,                                   100,           50,   kPercent },
+        { "Gate Length",           5,                                   1000,          100,  kMs },
+        { "Global Randomize",      { "Off", "On" },                     1,             kEnum },
       }
     }
   end,
-  
+
   gate = function(self, input, rising)
-    local idx = self.parameters[1]
+    local voltIdx = self.parameters[1]
+    local gateIdx = self.parameters[2]
     if input == 1 and rising then
       -- Advance voltage sequence.
-      local voltSeq = voltageSequences[idx]
-      voltSeq.stepCount = self.parameters[2]
+      local voltSeq = voltageSequences[voltIdx]
+      voltSeq.stepCount = self.parameters[3]
       voltSeq.currentStep = voltSeq.currentStep + 1
       if voltSeq.currentStep > voltSeq.stepCount then
         voltSeq.currentStep = 1
       end
-      updateVoltageCached(voltSeq, self.parameters[6], self.parameters[3], self.parameters[4], self.parameters[5])
-      
+      updateVoltageCached(voltSeq, self.parameters[7], self.parameters[4], self.parameters[5], self.parameters[6])
+
       -- Advance gate sequence.
-      local gateSeq = gateSequences[idx]
-      gateSeq.numSteps = self.parameters[7]
+      local gateSeq = gateSequences[gateIdx]
+      gateSeq.numSteps = self.parameters[8]
       gateSeq.stepIndex = gateSeq.stepIndex + 1
       if gateSeq.stepIndex > gateSeq.numSteps then
         gateSeq.stepIndex = 1
       end
-      if gateSeq.steps[gateSeq.stepIndex] >= self.parameters[8] then
-        gateSeq.gateRemainingSteps = self.parameters[9]
+      if gateSeq.steps[gateSeq.stepIndex] >= self.parameters[9] then
+        gateSeq.gateRemainingSteps = self.parameters[10]
       end
     end
   end,
-  
+
   trigger = function(self, input)
-    local idx = self.parameters[1]
+    local voltIdx = self.parameters[1]
+    local gateIdx = self.parameters[2]
     if input == 2 then
-      -- Reset active sequence.
-      voltageSequences[idx].currentStep = 1
-      updateVoltageCached(voltageSequences[idx], self.parameters[6], self.parameters[3], self.parameters[4], self.parameters[5])
-      gateSequences[idx].stepIndex = 1
+      -- Reset active voltage sequence.
+      voltageSequences[voltIdx].currentStep = 1
+      updateVoltageCached(voltageSequences[voltIdx], self.parameters[7], self.parameters[4], self.parameters[5],
+        self.parameters[6])
+      -- Reset active gate sequence.
+      gateSequences[gateIdx].stepIndex = 1
     elseif input == 3 then
       -- Global randomize all sequences.
       globalRandomize(self)
     end
   end,
-  
+
   step = function(self, dt, inputs)
-    local idx = self.parameters[1]
-    if idx ~= lastActiveIndex then
-      lastActiveIndex = idx
-      updateVoltageCached(voltageSequences[idx], self.parameters[6], self.parameters[3], self.parameters[4], self.parameters[5])
+    local voltIdx = self.parameters[1]
+    local gateIdx = self.parameters[2]
+    if voltIdx ~= lastActiveVoltIndex then
+      lastActiveVoltIndex = voltIdx
+      updateVoltageCached(voltageSequences[voltIdx], self.parameters[7], self.parameters[4], self.parameters[5],
+        self.parameters[6])
     end
-    OUTPUT_BUFFER[1] = voltageSequences[idx].cachedVoltage
-    local gateSeq = gateSequences[idx]
+    OUTPUT_BUFFER[1] = voltageSequences[voltIdx].cachedVoltage
+    local gateSeq = gateSequences[gateIdx]
     if gateSeq.gateRemainingSteps > 0 then
       gateSeq.gateRemainingSteps = gateSeq.gateRemainingSteps - 1
       OUTPUT_BUFFER[2] = 5
@@ -181,77 +186,72 @@ return {
     end
     return OUTPUT_BUFFER
   end,
-  
+
   encoder2Push = function(self)
     globalRandomize(self)
   end,
-  
+
   pot2Turn = function(self, x)
     local alg = getCurrentAlgorithm()
     local p = self.parameterOffset + 1 + x * 10.5
     focusParameter(alg, p)
   end,
-  
+
   pot3Turn = function(self, x)
     standardPot3Turn(x)
   end,
-  
+
   draw = function(self)
-    local idx = self.parameters[1]
+    local voltIdx = self.parameters[1]
+    local gateIdx = self.parameters[2]
     -- Leave top 20px unused (for header)
-    
-    -- Draw gate sequence as blocks, starting at y = 25.
-    local gateSeq = gateSequences[idx]
-    local numGate = self.parameters[7]
+
+    -- Draw gate sequence blocks starting at y = 25.
+    local gateSeq = gateSequences[gateIdx]
+    local numGate = self.parameters[8]
     local gateBlockWidth = math.floor(256 / numGate)
     local gateBlockHeight = 10
     local gateY = 25
     for i = 1, numGate do
       local x = (i - 1) * gateBlockWidth
-      if gateSeq.steps[i] >= self.parameters[8] then
+      -- If this is the active gate step, draw a white border first.
+      if i == gateSeq.stepIndex then
+        drawRectangle(x - 1, gateY - 1, x + gateBlockWidth - 1, gateY + gateBlockHeight + 1, 15)
+      end
+      -- Draw the block.
+      if gateSeq.steps[i] >= self.parameters[9] then
         drawRectangle(x, gateY, x + gateBlockWidth - 2, gateY + gateBlockHeight, 15)
       else
         drawRectangle(x, gateY, x + gateBlockWidth - 2, gateY + gateBlockHeight, 3)
       end
-      if i == gateSeq.stepIndex then
-         -- Draw white border around active gate step.
-         drawLine(x, gateY, x + gateBlockWidth - 2, gateY, 15)
-         drawLine(x, gateY, x, gateY + gateBlockHeight, 15)
-         drawLine(x + gateBlockWidth - 2, gateY, x + gateBlockWidth - 2, gateY + gateBlockHeight, 15)
-         drawLine(x, gateY + gateBlockHeight, x + gateBlockWidth - 2, gateY + gateBlockHeight, 15)
-      end
     end
-    
-    -- Draw voltage sequence as colored blocks, starting at y = 40.
-    local voltSeq = voltageSequences[idx]
-    local numVolt = self.parameters[2]
+
+    -- Draw voltage sequence blocks starting at y = 40.
+    local voltSeq = voltageSequences[voltIdx]
+    local numVolt = self.parameters[3]
     local voltBlockWidth = math.floor(256 / numVolt)
     local voltBlockHeight = 10
     local voltY = 40
-    local effectiveMin, effectiveMax = getEffectiveRange(self.parameters[3], self.parameters[4], self.parameters[5])
+    local effectiveMin, effectiveMax = getEffectiveRange(self.parameters[4], self.parameters[5], self.parameters[6])
     for i = 1, numVolt do
       local x = (i - 1) * voltBlockWidth
       local raw = voltSeq.steps[i]
       local voltage
-      if self.parameters[5] == 2 then
+      if self.parameters[6] == 2 then
         voltage = (raw + 32768) / 65535 * (effectiveMax - effectiveMin) + effectiveMin
-      elseif self.parameters[5] == 1 then
+      elseif self.parameters[6] == 1 then
         voltage = (raw < 0 and 0 or raw) / 32767 * (effectiveMax - effectiveMin) + effectiveMin
-      elseif self.parameters[5] == 3 then
+      elseif self.parameters[6] == 3 then
         voltage = ((raw > 0 and 0 or raw) + 32768) / 32768 * (effectiveMax - effectiveMin) + effectiveMin
       end
       local norm = (voltage - effectiveMin) / (effectiveMax - effectiveMin)
       if norm < 0 then norm = 0 end
       if norm > 1 then norm = 1 end
       local colorIndex = math.floor(norm * 14) + 1
-      drawRectangle(x, voltY, x + voltBlockWidth - 2, voltY + voltBlockHeight, colorIndex)
       if i == voltSeq.currentStep then
-         -- Draw white border around active voltage step.
-         drawLine(x, voltY, x + voltBlockWidth - 2, voltY, 15)
-         drawLine(x, voltY, x, voltY + voltBlockHeight, 15)
-         drawLine(x + voltBlockWidth - 2, voltY, x + voltBlockWidth - 2, voltY + voltBlockHeight, 15)
-         drawLine(x, voltY + voltBlockHeight, x + voltBlockWidth - 2, voltY + voltBlockHeight, 15)
+        drawRectangle(x - 1, voltY - 1, x + voltBlockWidth - 1, voltY + voltBlockHeight + 1, 15)
       end
+      drawRectangle(x, voltY, x + voltBlockWidth - 2, voltY + voltBlockHeight, colorIndex)
     end
   end,
 }
