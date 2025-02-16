@@ -1,9 +1,37 @@
--- Combined AE Random Voltage & Gates (Multi-Seq) with Independent Seq Indices and Enhanced Active Step UI
+-- AE Sequencer
+-- A simple generative sequencer with independent voltage and gate sequences.
+
+--[[
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+]] --
 local NUM_SEQUENCES = 20
 local MAX_STEPS = 32
 
 local OUTPUT_BUFFER = { 0, 0 } -- Preallocated output buffer for step()
-local lastActiveVoltIndex = 1 -- Tracks last active voltage sequence index
+local lastActiveVoltIndex = 1  -- Tracks last active voltage sequence index
 
 -- Tables to hold 20 voltage sequences and 20 gate sequences.
 local voltageSequences = {}
@@ -99,8 +127,8 @@ local function globalRandomize(self)
 end
 
 return {
-  name = "Combined AE Random Voltage & Gates (Multi-Seq)",
-  author = "Modified from Andras Eichstaedt / Thorinside / 4o",
+  name = "AE Sequencer",
+  author = "Andras Eichstaedt / Thorinside / 4o",
 
   init = function(self)
     initSequences()
@@ -111,17 +139,17 @@ return {
       outputs = { kStepped, kGate },
       encoders = { 1, 2 },
       parameters = {
-        { "Active Volt Seq Index", 1,                                   NUM_SEQUENCES, 1,    kInt },
-        { "Active Gate Seq Index", 1,                                   NUM_SEQUENCES, 1,    kInt },
-        { "Voltage Steps",         1,                                   MAX_STEPS,     8,    kInt },
-        { "Min Voltage",           -10,                                 10,            -1,   kVolts },
-        { "Max Voltage",           -10,                                 10,            1,    kVolts },
-        { "Polarity",              { "Positive", "Bipolar", "Negative" }, 2,           kEnum },
-        { "Bit Depth (Voltage)",   2,                                   16,            16,   kInt },
-        { "Gate Steps",            1,                                   MAX_STEPS,     16,   kInt },
-        { "Threshold",             1,                                   100,           50,   kPercent },
-        { "Gate Length",           5,                                   1000,          100,  kMs },
-        { "Global Randomize",      { "Off", "On" },                     1,             kEnum },
+        { "Active Volt Seq Index", 1,                                     NUM_SEQUENCES, 1,    kInt },
+        { "Active Gate Seq Index", 1,                                     NUM_SEQUENCES, 1,    kInt },
+        { "Voltage Steps",         1,                                     MAX_STEPS,     8,    kInt },
+        { "Min Voltage",           -10,                                   10,            -1,   kVolts },
+        { "Max Voltage",           -10,                                   10,            1,    kVolts },
+        { "Polarity",              { "Positive", "Bipolar", "Negative" }, 2,             kEnum },
+        { "Bit Depth (Voltage)",   2,                                     16,            16,   kInt },
+        { "Gate Steps",            1,                                     MAX_STEPS,     16,   kInt },
+        { "Threshold",             1,                                     100,           50,   kPercent },
+        { "Gate Length",           5,                                     1000,          100,  kMs },
+        { "Global Randomize",      { "Off", "On" },                       1,             kEnum },
       }
     }
   end,
@@ -186,6 +214,8 @@ return {
     end
     return OUTPUT_BUFFER
   end,
+
+  ui = function(self) return true end,
 
   encoder2Push = function(self)
     globalRandomize(self)
