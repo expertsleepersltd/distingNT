@@ -1049,6 +1049,7 @@ function processParameterPages( data ) {
 	str += "</tbody></table>";
 
 	document.getElementById( "parameters" ).innerHTML = str;
+	numParameters = num;
 	nextParameterToGet = 0;
 	numParametersToGet = num;
 	setTimeout( getNextParameter, 20 );
