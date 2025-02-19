@@ -91,6 +91,10 @@ td.routingSlotName {
 td.routingSlot {
 	text-align: center;
 }
+button.moveSlot {
+	width : 1em;
+	padding : 0;
+}
 </style>
 
 <script>
@@ -202,7 +206,6 @@ Module display mode:
 <button onclick='savePreset(0)'>Save (prompt)</button>
 <button onclick='savePreset(1)'>Save (safe)</button>
 <button onclick='savePreset(2)'>Save (force)</button>
-<button onclick='moveAlgorithmUp()'>Move algorithm up</button>
 -->
 <label for="algorithms_menu">Algorithms:</label>
 <select id="algorithms_menu" onchange='changeAlgorithm()'></select>
@@ -531,7 +534,7 @@ function buildRoutingInfo() {
 	}
 
 	let str = "<table class='routing'>";
-	let heading = "<tr class='routing'><th colspan=2 />";
+	let heading = "<tr class='routing'><th colspan=4 />";
 	for ( let i=0; i<28; ++i ) {
 		let ch = 1 + i;
 		let cl = "routingI";
@@ -546,7 +549,7 @@ function buildRoutingInfo() {
 		heading += "<th class='" + cl + "'>" + ch + "</th>";
 	}
 	heading += "</tr>";
-	let heading2 = "<tr class='routing'><th colspan=2 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=8>Aux</th></tr>";
+	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=8>Aux</th></tr>";
 	str += heading2;
 	str += heading;
 	let colours = [ "#ffffff", colour1, colour2, "#fcfcfc", darken( colour1 ), darken( colour2 ) ];
@@ -557,7 +560,7 @@ function buildRoutingInfo() {
 		let replaceMask = r[2];
 		let effectiveInput = inputMask | ( outputMask & ~replaceMask );
 		let row = signals[ s ];
-		str += "<tr class='routing'><td /><td />";
+		str += "<tr class='routing'><td colspan=3 /><td />";
 		for ( let i=1; i<=28; ++i ) {
 			let ch = i;
 			if ( ch > 12 ) {
@@ -572,6 +575,8 @@ function buildRoutingInfo() {
 		}
 		str += "</tr>";
 		str += "<tr class='routingSlot'>";
+		str += s ? "<td class='routingSlotName'><button class='moveSlot' onclick='moveSlotUp(" + s + ")'>&uarr;</button></td>" : "<td />";
+		str += (s<slotCount-1) ? "<td class='routingSlotName'><button class='moveSlot' onclick='moveSlotDown(" + s + ")'>&darr;</button></td>" : "<td />";
 		str += "<td class='routingSlotName'><button onclick='editSlot(" + s + ")'>" + (s+1) + "</button></td>";
 		str += "<td class='routingSlotName'>" + slotNames[s] + "</td>";
 		let used = r[0] | r[5] | outputMask;
@@ -589,7 +594,7 @@ function buildRoutingInfo() {
 		}
 		str += "</tr>";
 		row = signals[ s+1 ];
-		str += "<tr class='routing'><td /><td />";
+		str += "<tr class='routing'><td colspan=3 /><td />";
 		for ( let i=1; i<=28; ++i ) {
 			let ch = i;
 			if ( ch > 12 ) {
@@ -1495,13 +1500,19 @@ function savePreset( option ) {
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
-function moveAlgorithmUp() {
-	let slot = document.getElementById( 'slot' ).value;
+function moveSlotUp( s ) {
+	moveSlot( s, s-1 );
+}
+function moveSlotDown( s ) {
+	moveSlot( s, s+1 );
+}
+function moveSlot( s, ns ) {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x37, slot, slot-1, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x37, s & 0x7f, ns & 0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent move algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
+	setTimeout( requestRouting, 50 );
 }
 
 function changeSlot() {
