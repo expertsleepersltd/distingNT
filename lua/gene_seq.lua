@@ -246,18 +246,17 @@ return {
           end
         end
       end
-    elseif input == 2 and rising then
-      -- reset => step=1
-      currentStep = 1
-    elseif input == 3 and rising then
-      local evoRate = self.parameters[3]
-      evolvePopulation(evoRate)
-      currentStep = 1
     end
   end,
 
   trigger      = function(self, input)
-    -- not used
+    if input == 2 then
+      currentStep = 1
+    elseif input == 3 then
+      local evoRate = self.parameters[3]
+      evolvePopulation(evoRate)
+      currentStep = 1
+    end
   end,
 
   step         = function(self, dt, inputs)

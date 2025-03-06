@@ -1,0 +1,11 @@
+{
+  "Lua.diagnostics.globals": [
+    "drawText",
+    "drawRectangle",
+    "drawLine",
+    "kGate",
+    "kTrigger",
+    "kMIDINote",
+    "kPercent"
+  ]
+}
