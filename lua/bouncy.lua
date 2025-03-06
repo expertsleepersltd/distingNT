@@ -47,6 +47,9 @@ local ty = toScreenY( 10.0 )
 local cy = toScreenY( 0.0 )
 local by = toScreenY( -10.0 )
 
+-- allocate a table to return from step(), rather than allocating a new one on every call
+local out = {}
+
 return
 {
 	name = 'bouncy'
@@ -56,7 +59,9 @@ return
 		return
 		{
 			inputs = { kCV, kTrigger, kGate }		-- or inputs = integer if all CVs
+		,	inputNames = { [2]="Trigger input" }
 		,	outputs = 2
+		,	outputNames = { "X output", "Y output" }
 		,	parameters = 
 			{
 				{ "Min X", -10, 10, -10, kVolts }			-- min, max, default, unit
@@ -111,7 +116,6 @@ return
 			end
 		end
 		time = time + dt
-		local out = {}
 		local t = f * time
 		out[1] = x + math.sin( t )
 		out[2] = y + inputs[1]
