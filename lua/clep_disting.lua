@@ -100,6 +100,8 @@ return {
         return {
             inputs = {kGate, kTrigger},
             outputs = {kLinear, kTrigger},
+            inputNames = {"Clock", "Reset"},
+            outputNames = {"CV Output", "BOC Trigger Output"},
             parameters = {
                 {"Mode", kModes, 1}, {"Steps", 1, 32, 8, kInteger},
                 {"Direction", {"Up", "Down", "UpDown"}, 1},

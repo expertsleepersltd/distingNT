@@ -90,13 +90,19 @@ return {
         return {
             inputs = 1, -- Add clock input
             outputs = 2,
+            inputNames = {"Clock"},
+            outputNames = {"V/OCT Output", "Gate Output"},
             parameters = {
                 {"Sequence Length", 1, 32, sequenceLength, kInt},
                 {"Rest Probability", 0, 100, restProbability, kPercent},
                 {"Sequence Probability", 0, 100, sequenceProbability, kPercent},
-                {"Gate Duration", 100, 2000, gateDuration, kMilliseconds},
-                {"Base Octave", -2, 5, baseOctave, kInt},
-                {"Scale", 1, 7, scaleIndex, kInt}
+                {"Gate Duration", 100, 2000, gateDuration, kMs},
+                {"Base Octave", -2, 5, baseOctave, kInt}, {
+                    "Scale", {
+                        "Major", "Minor", "Phrygian", "Penta Major",
+                        "Penta Minor", "Miyako Bushi", "Prometheus"
+                    }, scaleIndex, kEnum
+                }
             }
         }
     end,

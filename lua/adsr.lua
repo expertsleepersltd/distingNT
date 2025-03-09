@@ -133,6 +133,8 @@ return {
         return {
             inputs = {kGate},
             outputs = {kLinear},
+            inputNames = {"Gate"},
+            outputNames = {"Envelope"},
             parameters = {
                 {"Attack", 5, 3000, 250, kMilliseconds},
                 {"Decay", 5, 3000, 100, kMilliseconds},

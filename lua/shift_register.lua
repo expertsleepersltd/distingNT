@@ -38,6 +38,8 @@ return {
         return {
             inputs = {kCV, kGate}, -- CV input and Gate/Trigger input
             outputs = 6, -- Number of output CV slots (stack size)
+            inputNames = {"CV", "Gate"},
+            outputNames = {"CV 1", "CV 2", "CV 3", "CV 4", "CV 5", "CV 6"},
             parameters = {}
         }
     end,
