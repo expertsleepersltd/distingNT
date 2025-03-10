@@ -38,6 +38,11 @@ return {
         return {
             inputs = {kGate, kGate, kGate, kGate}, -- Four Gate inputs
             outputs = 4, -- Number of output Gates
+            inputNames = {"Gate 1", "Gate 2", "Gate 3", "Gate 4"},
+            outputNames = {
+                "Gate Output 1", "Gate Output 2", "Gate Output 3",
+                "Gate Output 4"
+            },
             parameters = {
                 {"P1", 0, 100, 50, kPercent}, {"P2", 0, 100, 50, kPercent},
                 {"P3", 0, 100, 50, kPercent}, {"P4", 0, 100, 50, kPercent},

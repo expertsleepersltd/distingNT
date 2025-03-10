@@ -1,6 +1,5 @@
 -- AE Random Stepped Voltage
 -- Generates a single stepped random voltage sequence.
-
 --[[
 This is free and unencumbered software released into the public domain.
 
@@ -27,7 +26,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <https://unlicense.org>
 ]] -- 
-
 local MAX_STEPS = 32
 
 local sequence = {
@@ -41,13 +39,11 @@ local sequence = {
     freeze = 0,
     valueResolution = 16,
     cachedVoltage = 0,
-    output = {0}  -- pre-allocated output table for the step function
+    output = {0} -- pre-allocated output table for the step function
 }
 
 -- Preallocate the steps table up to MAX_STEPS.
-for i = 1, MAX_STEPS do
-    sequence.steps[i] = 0
-end
+for i = 1, MAX_STEPS do sequence.steps[i] = 0 end
 
 local polarityNames = {"Positive", "Bipolar", "Negative"}
 
@@ -58,8 +54,10 @@ local function getEffectiveRange()
         effectiveMin = sequence.minVoltage
         effectiveMax = sequence.maxVoltage
     elseif sequence.polarity == 2 then
-        effectiveMin = sequence.minVoltage - (sequence.maxVoltage - sequence.minVoltage) / 2
-        effectiveMax = sequence.maxVoltage - (sequence.maxVoltage - sequence.minVoltage) / 2
+        effectiveMin = sequence.minVoltage -
+                           (sequence.maxVoltage - sequence.minVoltage) / 2
+        effectiveMax = sequence.maxVoltage -
+                           (sequence.maxVoltage - sequence.minVoltage) / 2
     elseif sequence.polarity == 3 then
         effectiveMin = -sequence.maxVoltage
         effectiveMax = -sequence.minVoltage
@@ -85,7 +83,8 @@ local function updateCachedVoltage(self)
     if rawValue then
         local resolutionBits = math.max(1, self.parameters[5])
         local effectiveMin, effectiveMax = getEffectiveRange()
-        sequence.cachedVoltage = quantizeVoltage(rawValue, resolutionBits, effectiveMin, effectiveMax)
+        sequence.cachedVoltage = quantizeVoltage(rawValue, resolutionBits,
+                                                 effectiveMin, effectiveMax)
     end
 end
 
@@ -114,7 +113,10 @@ end
 randomizeSequence()
 do
     local effectiveMin, effectiveMax = getEffectiveRange()
-    sequence.cachedVoltage = quantizeVoltage(sequence.steps[sequence.currentStep], sequence.valueResolution, effectiveMin, effectiveMax)
+    sequence.cachedVoltage = quantizeVoltage(
+                                 sequence.steps[sequence.currentStep],
+                                 sequence.valueResolution, effectiveMin,
+                                 effectiveMax)
 end
 
 return {
@@ -125,7 +127,8 @@ return {
         return {
             inputs = {kGate, kTrigger},
             outputs = {kStepped},
-            encoders = {1, 2},
+            inputNames = {"Clock", "Reset"},
+            outputNames = {"CV Output"},
             parameters = {
                 {"Number of Steps", 1, MAX_STEPS, 8, kInt},
                 {"Min Voltage", -100, 100, -100, kVolts, kBy10},
@@ -133,17 +136,17 @@ return {
                 {"Polarity", polarityNames, 1},
                 {"Value Resolution (bits)", 2, 16, 16, kInt},
                 {"Freeze", {"Off", "On"}, 1, kEnum},
-                {"Randomize", {"Off", "On"}, 1, kEnum},
+                {"Randomize", {"Off", "On"}, 1, kEnum}
             }
         }
     end,
 
     gate = function(self, input, rising)
         -- Update parameters.
-        sequence.stepCount  = self.parameters[1]
+        sequence.stepCount = self.parameters[1]
         sequence.minVoltage = self.parameters[2]
         sequence.maxVoltage = self.parameters[3]
-        sequence.polarity   = self.parameters[4]
+        sequence.polarity = self.parameters[4]
 
         -- Advance the sequence on clock input when freeze is off.
         if input == 1 and rising and self.parameters[6] == 1 then
@@ -187,16 +190,16 @@ return {
         focusParameter(alg, p)
     end,
 
-    pot3Turn = function(self, x)
-        standardPot3Turn(x)
-    end,
+    pot3Turn = function(self, x) standardPot3Turn(x) end,
 
     -- Displays the current step, cached voltage, polarity, resolution, and other settings.
     draw = function(self)
-        drawText(10, 20, "Step: " .. sequence.currentStep ..
-                    " -> " .. string.format("%.2fV", sequence.cachedVoltage))
-        drawText(10, 30, "Freeze: " .. (self.parameters[6] == 2 and "ON" or "OFF"))
-        drawText(10, 40, "Randomize: " .. (self.parameters[7] == 2 and "ON" or "OFF"))
+        drawText(10, 20, "Step: " .. sequence.currentStep .. " -> " ..
+                     string.format("%.2fV", sequence.cachedVoltage))
+        drawText(10, 30,
+                 "Freeze: " .. (self.parameters[6] == 2 and "ON" or "OFF"))
+        drawText(10, 40,
+                 "Randomize: " .. (self.parameters[7] == 2 and "ON" or "OFF"))
         drawText(10, 50, "Polarity: " .. polarityNames[self.parameters[4]])
         drawText(10, 60, "Resolution: " .. self.parameters[5] .. " bits")
     end
