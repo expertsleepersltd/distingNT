@@ -70,13 +70,14 @@ return {
     end,
 
     draw = function(self)
+        drawTinyText(10, 10, "Shift Register")
         -- Display gate status at the top-left corner
-        drawText(10, 20, gateHigh and "High" or "Low")
+        drawTinyText(225, 34, gateHigh and "GATE" or "")
 
         -- Define the stack visualization area
         local maxVoltage = 12 -- Maximum expected magnitude of CV voltage
         local zeroY = 32 -- Y-coordinate for zero voltage (mid-height for 64-pixel screen)
-        local scale = 30 / maxVoltage -- Scale factor for visualization (fit within ±30 pixels)
+        local scale = 25 / maxVoltage -- Scale factor for visualization (fit within ±30 pixels)
         local blockWidth = 30 -- Width of each block
         local blockSpacing = 5 -- Space between blocks
 
@@ -108,5 +109,6 @@ return {
                 drawRectangle(x1, y1, x2, y2, brightness)
             end
         end
+        return true -- Take over the screen
     end
 }
