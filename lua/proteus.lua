@@ -103,7 +103,7 @@ return {
                 {"Gate Duration", 100, 2000, gateDuration, kMs},
                 {"Base Octave", -2, 5, baseOctave, kInt}, 
                 {"Scale", scaleNames, scaleIndex, kEnum},
-                {"Root Note", rootNoteNames, 1, kEnum},
+                {"Root Note", rootNoteNames, 0, kEnum},
                 {"Generate New", 0, 1, 0, kBool}
             }
         }
@@ -119,7 +119,7 @@ return {
         nextGateDuration = math.floor(self.parameters[4])
         baseOctave = math.floor(self.parameters[5])
         scaleIndex = math.floor(self.parameters[6])
-        rootNote = math.floor(self.parameters[7])
+        rootNote = math.floor(self.parameters[7]) - 1
         scale = scales[scaleIndex] -- Update scale dynamically
 
         -- Check if we should generate a new sequence based on parameter
@@ -179,14 +179,12 @@ return {
 
     encoder1Turn = function(self, value)
         algorithm = getCurrentAlgorithm()
-        setParameter(algorithm, self.parameterOffset + 6, 
-                     self.parameters[6] + value)
+        setParameter(algorithm, self.parameterOffset + 6, self.parameters[6] + value)
     end,
 
     encoder2Turn = function(self, value)
         algorithm = getCurrentAlgorithm()
-        setParameter(algorithm, self.parameterOffset + 7, 
-                     self.parameters[7] + value)
+        setParameter(algorithm, self.parameterOffset + 7, self.parameters[7] + value)            
     end,
 
     pot1Turn = function(self, value)
@@ -204,13 +202,6 @@ return {
     pot3Turn = function(self, value)
         algorithm = getCurrentAlgorithm()
         setParameter(algorithm, self.parameterOffset + 4, value * 2000.0)
-    end,
-
-    encoder1Push = function(self, value) 
-        -- Toggle the scale type
-        algorithm = getCurrentAlgorithm()
-        scaleIndex = scaleIndex % #scales + 1
-        setParameter(algorithm, self.parameterOffset + 6, scaleIndex)
     end,
 
     encoder2Push = function(self, value)
