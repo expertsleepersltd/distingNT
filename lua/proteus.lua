@@ -269,7 +269,7 @@ return {
         
         -- Display parameter information
         local paramsX = 150
-        local paramsY = 26  -- Decreased by 10 more pixels (from 36 to 26)
+        local paramsY = 26
         local lineHeight = 8
         
         drawTinyText(paramsX, paramsY, "Step: " .. currentStep .. "/" .. sequenceLength)
