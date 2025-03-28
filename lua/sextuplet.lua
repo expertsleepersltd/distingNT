@@ -18,6 +18,7 @@ AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
 ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]] local samples = {nil, nil, nil, nil, nil, nil}
+ local scaledSamples = {nil, nil, nil, nil, nil, nil}
 
 return {
     name = "Sextuplet",
@@ -70,17 +71,16 @@ return {
         local scale = self.parameters[1] / 100.0
 
         -- Apply scaling to all outputs
-        local outputs = {}
         for i = 1, 6 do
             if samples[i] ~= nil then
-                outputs[i] = samples[i] * scale
+                scaledSamples[i] = samples[i] * scale
             else
-                outputs[i] = 0
+                scaledSamples[i] = nil
             end
         end
 
         -- Return the scaled outputs
-        return outputs
+        return scaledSamples
     end,
 
     ui = function(self) return true end,
