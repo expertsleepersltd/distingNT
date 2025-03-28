@@ -236,7 +236,7 @@ end
 local function mutate_sequence(self)
     local new_seq, new_last = full_generate_sequence(self)
     for i = 1, NUM_STEPS do
-        if math.random() < ((self.parameters[6] / 100) / NUM_STEPS) then
+        if math.random() < ((self.parameters[6] / 100)) then
             sequence[i] = new_seq[i]
         end
     end
@@ -247,16 +247,19 @@ local function draw_seq(self)
     local text = ROOT_NAMES[(self.parameters[1] % 12) + 1] .. " " ..
                      SCALE_NAMES[self.parameters[2]]
     local gridX = 8;
-    local gridY = 30;
-    local cw = 15;
-    local ch = 15
+    local gridY = 25;
+    local textX = 140;
+    local cw = 12;
+    local ch = 12;
 
-    drawText(gridX, 20, text)
+    drawTinyText(gridX, 10, "Markov Chain Sequencer")
+
+    drawText(gridX, gridY - 2, text)
 
     for i = 1, NUM_STEPS do
         local x = gridX + ((i - 1) % 8) * cw
-        local y = gridY + math.floor((i - 1) / 8) * ch
-        local bright = sequence[i].active == 1 and 10 or 3
+        local y = gridY + 2 + math.floor((i - 1) / 8) * ch
+        local bright = sequence[i].active == 1 and 8 or 3
 
         if i == currentStep then bright = 15 end
 
@@ -264,10 +267,17 @@ local function draw_seq(self)
 
         if sequence[i].active == 1 then
             local ph = math.floor((127 - (sequence[i].pitch % 12) * 5) / 15)
-            drawLine(x + 2, y + ph, x + cw - 4, y + ph, 1)
+            drawLine(x + 2, y + ph, x + cw - 4, y + ph, 0)
         end
     end
-    drawText(10, 55, "Step: " .. currentStep .. "/" .. NUM_STEPS)
+    drawTinyText(gridX, gridY + 32, "Step: " .. currentStep .. "/" .. NUM_STEPS)
+
+    drawTinyText(textX, gridY + 8,
+                 "Mutation Rate: " .. self.parameters[6] .. "%")
+    drawTinyText(textX, gridY + 16,
+                 "      Emotion: " .. self.parameters[3] .. "%")
+    drawTinyText(textX, gridY + 24,
+                 "    Jumpiness: " .. self.parameters[5] .. "%")
 end
 
 local function init_params(self)
@@ -344,6 +354,54 @@ return {
         end
     end,
 
+    ui = function(self) return true end,
+
+    setupUi = function(self)
+        return {
+            ((self and self.parameters and self.parameters[6]) or 20) / 100.0,
+            ((self and self.parameters and self.parameters[3]) or 50) / 100.0,
+            ((self and self.parameters and self.parameters[5]) or 30) / 100.0
+        }
+    end,
+
+    encoder1Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 2,
+                     self.parameters[2] + value)
+    end,
+
+    encoder2Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 1,
+                     self.parameters[1] + value)
+    end,
+
+    pot1Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 6, value * 100.0)
+    end,
+
+    pot2Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 3, value * 100.0)
+    end,
+
+    pot2Push = function(self, value) exit() end,
+
+    pot3Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 5, value * 100.0)
+    end,
+
+    encoder1Push = function(self, value) generate_sequence(self) end,
+
+    encoder2Push = function(self, value)
+        init_sequence(self)
+        lastNoteIndex = 1
+        generate_sequence(self)
+        currentStep = 1
+    end,
+
     step = function(self, dt, inputs)
         ensure_initialized(self)
         if self.parameters[8] == 1 then randomizePending = true end
@@ -364,5 +422,6 @@ return {
         ensure_initialized(self)
         local status, err = pcall(function() draw_seq(self) end)
         if not status then debug("Error in draw: " .. tostring(err)) end
+        return true
     end
 }
