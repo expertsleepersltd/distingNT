@@ -709,13 +709,13 @@ function processEnumStrings( data ) {
 	}
 }
 
-var mappingVersion = 2;
+var mappingVersion = 3;
 
 function processMapping( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let c = 3;
 	let version = data[c]; c++;
-	if ( version < 1 || version > 2 ) {
+	if ( version < 1 || version > 3 ) {
 		alert( "Unknown mapping data version" );
 		return;
 	}
@@ -756,6 +756,9 @@ function processMapping( data ) {
 	}
 	{
 		let cc = data[c]; c++;
+		if ( version >= 3 ) {
+			cc |= ( data[c] & 1 ) << 7; c++;
+		}
 		let flags = data[c]; c++;
 		let min = extractShort( data.slice( c, c+3 ) ); c += 3;
 		let max = extractShort( data.slice( c, c+3 ) ); c += 3;
@@ -884,7 +887,7 @@ function tableRowForParameter( i ) {
 			str += "<td class='map_midi'><input id=p" + i + "_midi_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_min(" + i + ")'></td>";
 			str += "<td class='map_midi'><input id=p" + i + "_midi_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_midi_max(" + i + ")'></td>";
 
-			str += "<td class='map_i2c'><input id=p" + i + "_i2c_cc type='number' class='param_v' size=3 min='0' max='127' onchange='mapping_i2c_cc(" + i + ")'></td>";
+			str += "<td class='map_i2c'><input id=p" + i + "_i2c_cc type='number' class='param_v' size=3 min='0' max='255' onchange='mapping_i2c_cc(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_en type='checkbox' class='param_c' onchange='mapping_i2c_en(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
@@ -1267,7 +1270,11 @@ function mapping_i2c( p ) {
 
 	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4F, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion, cc, flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4F, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion, cc&0x7f ];
+	if ( mappingVersion >= 3 ) {
+		arr.push( (cc>>7)&0x7f );
+	}
+	arr.push( flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 );
 	output.send( arr );
 	let dd = log( "sent midi mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
