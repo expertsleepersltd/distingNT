@@ -100,8 +100,7 @@ return {
   end,
 
   encoder1Push = function()
-    local r = getParameter(granulator, p_record)
-    if r < 0.5 then
+    if getParameter(granulator, p_record) == 0 then
       setParameter(granulator, p_record, 1)
     else
       setParameter(granulator, p_record, 0)
