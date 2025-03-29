@@ -137,7 +137,7 @@ return {
     button1Held = true
     if button2Held then
       local drone = getParameter(granulator, p_drone1_enable)
-      setParameter(granulator, p_drone1_enable, (drone < 0.5) and 1 or 0)
+      setParameter(granulator, p_drone1_enable, 1 - drone)
       button2PartnerTriggered = true
     else
       local dry = getParameter(granulator, p_dry_gain)
