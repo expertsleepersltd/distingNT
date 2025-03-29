@@ -24,6 +24,9 @@ local button1ComboTriggered = false
 local button2ComboTriggered = false
 local button3ComboTriggered = false
 
+local dryGain = 0
+local granulatorGain = 0
+
 return {
   name = 'Granulator UI script',
   author = 'Tsurba',
@@ -155,8 +158,15 @@ return {
   end,
   button1Release = function()
     if not button1ComboTriggered then
-      local dry = getParameter(granulator, p_dry_gain)
-      setParameter(granulator, p_dry_gain, (dry >= 0) and -40 or 0)
+      local currentDryGain = getParameter(granulator, p_dry_gain)
+      if currentDryGain > -40 then
+        -- store the current gain to restore it later
+        dryGain = currentDryGain
+        setParameter(granulator, p_dry_gain, -40)
+      else
+        -- restore the granulator gain to its stored value
+        setParameter(granulator, p_dry_gain, dryGain)
+      end
     end
     button1Held = false
     button1ComboTriggered = false
@@ -167,8 +177,15 @@ return {
   end,
   button2Release = function()
     if not button2ComboTriggered then
-      local granGain = getParameter(granulator, p_gran_gain)
-      setParameter(granulator, p_gran_gain, (granGain >= 0) and -40 or 0)
+      local currentGranGain = getParameter(granulator, p_gran_gain)
+      if currentGranGain > -40 then
+        -- store the current gain to restore it later
+        granulatorGain = currentGranGain
+        setParameter(granulator, p_gran_gain, -40)
+      else
+        -- restore the granulator gain to its stored value
+        setParameter(granulator, p_gran_gain, granulatorGain)
+      end
     end
     button2Held = false
     button2ComboTriggered = false
