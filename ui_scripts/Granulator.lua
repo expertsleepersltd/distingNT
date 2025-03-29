@@ -1,3 +1,4 @@
+-- TODO: Add gain control
 local granulator
 local p_delay_mean, p_delay_spread
 local p_size_mean, p_size_spread
@@ -8,10 +9,11 @@ local p_dry_gain, p_gran_gain
 local p_reverse, p_lfo_shape, p_grain_shape
 local p_grain_limit
 
-local delayMode = 1   -- 1: mean, 2: spread
-local sizeMode = 1    -- 1: mean, 2: spread
-local pitchMode = 1   -- 1: mean, 2: spread
-local lfoMode = 1     -- 1: speed, 2: depth
+-- Modes as booleans: true = mean/speed, false = spread/depth
+local delayMode = true   -- true: mean, false: spread
+local sizeMode = true    -- true: mean, false: spread
+local pitchMode = true   -- true: mean, false: spread
+local lfoMode = true     -- true: speed, false: depth
 
 local button1Held = false
 local button2Held = false
@@ -61,14 +63,14 @@ return {
   end,
 
   pot1Turn = function(value)
-    if delayMode == 1 then
+    if delayMode then
       setParameterNormalized(granulator, p_delay_mean, 1.0 - value)
     else
       setParameterNormalized(granulator, p_delay_spread, value)
     end
   end,
   pot1Push = function()
-    if delayMode == 1 then delayMode = 2 else delayMode = 1 end
+    delayMode = not delayMode
   end,
 
   pot2Turn = function(value)
@@ -77,7 +79,7 @@ return {
       setParameterNormalized(granulator, p_grain_limit, value)
       button2PartnerTriggered = true
     else
-      if sizeMode == 1 then
+      if sizeMode then
         setParameterNormalized(granulator, p_size_mean, value)
       else
         setParameterNormalized(granulator, p_size_spread, value)
@@ -85,18 +87,18 @@ return {
     end
   end,
   pot2Push = function()
-    if sizeMode == 1 then sizeMode = 2 else sizeMode = 1 end
+    sizeMode = not sizeMode
   end,
 
   pot3Turn = function(value)
-    if pitchMode == 1 then
+    if pitchMode then
       setParameterNormalized(granulator, p_pitch_mean, value)
     else
       setParameterNormalized(granulator, p_pitch_spread, value)
     end
   end,
   pot3Push = function()
-    if pitchMode == 1 then pitchMode = 2 else pitchMode = 1 end
+    pitchMode = not pitchMode
   end,
 
   encoder1Push = function()
@@ -114,11 +116,11 @@ return {
   end,
 
   encoder2Push = function()
-    if lfoMode == 1 then lfoMode = 2 else lfoMode = 1 end
+    lfoMode = not lfoMode
   end,
   encoder2Turn = function(whichWay)
     local step = 5
-    if lfoMode == 1 then
+    if lfoMode then
       local current = getParameter(granulator, p_lfo_speed)
       local newVal = current + whichWay * step
       setParameter(granulator, p_lfo_speed, newVal)
@@ -205,10 +207,10 @@ return {
     drawStandardParameterLine()
     drawAlgorithmUI(granulator)
     
-    local delayStr = (delayMode == 1 and "Mean  " or "Spread")
-    local sizeStr  = (sizeMode  == 1 and "Mean  " or "Spread")
-    local pitchStr = (pitchMode == 1 and "Mean  " or "Spread")
-    local lfoStr   = (lfoMode   == 1 and "Speed " or "Depth ")
+    local delayStr = (delayMode and "Mean  " or "Spread")
+    local sizeStr  = (sizeMode  and "Mean  " or "Spread")
+    local pitchStr = (pitchMode and "Mean  " or "Spread")
+    local lfoStr   = (lfoMode   and "Speed " or "Depth ")
     local modeStr = "Delay:" .. delayStr .. " | Size:" .. sizeStr .. " | Pitch:" .. pitchStr .. " | LFO:" .. lfoStr
     drawTinyText(10, 56, modeStr)
     
