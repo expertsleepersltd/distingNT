@@ -1,4 +1,3 @@
--- TODO: Add gain control
 local granulator
 local p_delay_mean, p_delay_spread
 local p_size_mean, p_size_spread
@@ -20,8 +19,10 @@ local button2Held = false
 local button3Held = false
 local button4Held = false
 
-local button2PartnerTriggered = false  -- set if Button 1 is pressed while Button 2 is held
-local button3PartnerTriggered = false  -- set if Button 4 is pressed while Button 3 is held
+-- State variables for button/encoder combos
+local button1ComboTriggered = false
+local button2ComboTriggered = false
+local button3ComboTriggered = false
 
 return {
   name = 'Granulator UI script',
@@ -77,7 +78,7 @@ return {
     if button2Held then
       local grainLimit = getParameter(granulator, p_grain_limit)
       setParameterNormalized(granulator, p_grain_limit, value)
-      button2PartnerTriggered = true
+      button2ComboTriggered = true
     else
       if sizeMode then
         setParameterNormalized(granulator, p_size_mean, value)
@@ -109,10 +110,23 @@ return {
     end
   end,
   encoder1Turn = function(whichWay)
-    local step = 50.0
-    local current = getParameter(granulator, p_buffer_size)
-    local newVal = current + whichWay * step
-    setParameter(granulator, p_buffer_size, newVal)
+    -- If button 1 or 2 is held, change gain instead of buffer size.
+    if button1Held then
+      local current = getParameter(granulator, p_dry_gain)
+      local newVal = current + whichWay
+      setParameter(granulator, p_dry_gain, newVal)
+      button1ComboTriggered = true
+    elseif button2Held then
+      local current = getParameter(granulator, p_gran_gain)
+      local newVal = current + whichWay
+      setParameter(granulator, p_gran_gain, newVal)
+      button2ComboTriggered = true
+    else
+      local step = 50.0
+      local current = getParameter(granulator, p_buffer_size)
+      local newVal = current + whichWay * step
+      setParameter(granulator, p_buffer_size, newVal)
+    end
   end,
 
   encoder2Push = function()
@@ -131,73 +145,64 @@ return {
     end
   end,
 
-  -- Button 1: On push, if Button 2 is held then toggle Drone 1 enable and flag partner;
-  -- otherwise, toggle Dry gain.
   button1Push = function()
     button1Held = true
     if button2Held then
       local drone = getParameter(granulator, p_drone1_enable)
       setParameter(granulator, p_drone1_enable, 1 - drone)
-      button2PartnerTriggered = true
-    else
-      local dry = getParameter(granulator, p_dry_gain)
-      setParameter(granulator, p_dry_gain, (dry >= 0) and -40 or 0)
+      button2ComboTriggered = true
     end
   end,
   button1Release = function()
+    if not button1ComboTriggered then
+      local dry = getParameter(granulator, p_dry_gain)
+      setParameter(granulator, p_dry_gain, (dry >= 0) and -40 or 0)
+    end
     button1Held = false
+    button1ComboTriggered = false
   end,
 
-  -- Button 2: On push, simply record that Button 2 is held.
-  -- On release, if no Button 1 press occurred during its hold period then toggle Granulator gain;
-  -- otherwise do nothing.
   button2Push = function()
     button2Held = true
   end,
   button2Release = function()
-    if not button2PartnerTriggered then
+    if not button2ComboTriggered then
       local granGain = getParameter(granulator, p_gran_gain)
       setParameter(granulator, p_gran_gain, (granGain >= 0) and -40 or 0)
     end
     button2Held = false
-    button2PartnerTriggered = false
+    button2ComboTriggered = false
   end,
 
-  -- Button 3: On push, record that Button 3 is held.
-  -- On release, if no Button 4 press occurred during its hold period then advance Reverse by 25% steps;
-  -- otherwise do nothing.
   button3Push = function()
     button3Held = true
   end,
   button3Release = function()
-    if not button3PartnerTriggered then
+    if not button3ComboTriggered then
       local rev = getParameter(granulator, p_reverse)
       local newVal = (rev + 25) % 125
       setParameter(granulator, p_reverse, newVal)
     end
     button3Held = false
-    button3PartnerTriggered = false
+    button3ComboTriggered = false
   end,
 
-  -- Button 4: On push, record that Button 4 is held.
-  -- If Button 3 is held then cycle the Grain shape (parameter "Shape") and flag Button 3 partner;
-  -- otherwise, cycle the LFO shape (parameter "LFO shape").
   button4Push = function()
     button4Held = true
+  end,
+  button4Release = function()
     if button3Held then
       local current = getParameter(granulator, p_grain_shape)
       local newVal = current + 1
       if newVal >= 6 then newVal = 0 end
       setParameter(granulator, p_grain_shape, newVal)
-      button3PartnerTriggered = true
+      button3ComboTriggered = true
     else
       local current = getParameter(granulator, p_lfo_shape)
       local newVal = current + 1
       if newVal >= 3 then newVal = 0 end
       setParameter(granulator, p_lfo_shape, newVal)
     end
-  end,
-  button4Release = function()
     button4Held = false
   end,
 
