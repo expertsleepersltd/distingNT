@@ -127,8 +127,6 @@ return {
     else
       local current = getParameter(granulator, p_lfo_depth)
       local newVal = current + whichWay * step
-      if newVal > 100 then newVal = 100 end
-      if newVal < -100 then newVal = -100 end
       setParameter(granulator, p_lfo_depth, newVal)
     end
   end,
