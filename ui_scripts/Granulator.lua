@@ -212,14 +212,14 @@ return {
     local modeStr = "Delay:" .. delayStr .. " | Size:" .. sizeStr .. " | Pitch:" .. pitchStr .. " | LFO:" .. lfoStr
     drawTinyText(10, 56, modeStr)
     
-    local dM = math.floor(getParameter(granulator, p_delay_mean))
-    local dS = math.floor(getParameter(granulator, p_delay_spread))
-    local sM = math.floor(getParameter(granulator, p_size_mean))
-    local sS = math.floor(getParameter(granulator, p_size_spread))
-    local pM = math.floor(getParameter(granulator, p_pitch_mean))
-    local pS = math.floor(getParameter(granulator, p_pitch_spread))
+    local dM = getParameter(granulator, p_delay_mean)
+    local dS = getParameter(granulator, p_delay_spread)
+    local sM = getParameter(granulator, p_size_mean)
+    local sS = getParameter(granulator, p_size_spread)
+    local pM = getParameter(granulator, p_pitch_mean)
+    local pS = getParameter(granulator, p_pitch_spread)
     local lSpeed = string.format("%.2f", getParameter(granulator, p_lfo_speed) / 255.00)
-    local lDepth = math.floor(getParameter(granulator, p_lfo_depth))
+    local lDepth = getParameter(granulator, p_lfo_depth)
     local valueStr = "M:" .. dM .. "% S:" .. dS .. "%     M:" .. sM .. "% S:" .. sS .. "%   M:" .. pM .. "st S:" .. pS .. "ct   Spd:" .. lSpeed .. "% D:" .. lDepth .. "%"
     drawTinyText(10, 64, valueStr)
   end,
