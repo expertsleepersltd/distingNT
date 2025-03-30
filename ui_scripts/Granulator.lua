@@ -88,6 +88,8 @@ return {
       button2ComboTriggered = true
     else
       if sizeMode then
+        -- if value is less than 0.001 set it to 0 to make sure exactly zero is reached
+        if value < 0.001 then value = 0 end
         setParameterNormalized(granulator, p_size_mean, value)
       else
         setParameterNormalized(granulator, p_size_spread, value)
@@ -106,6 +108,8 @@ return {
       if pitchMode then
         setParameterNormalized(granulator, p_pitch_mean, value)
       else
+        -- if value is less than 0.001 set it to 0 to make sure exactly zero is reached
+        if value < 0.001 then value = 0 end
         setParameterNormalized(granulator, p_pitch_spread, value)
       end
     end
