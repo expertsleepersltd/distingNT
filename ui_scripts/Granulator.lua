@@ -6,6 +6,7 @@ local p_lfo_speed, p_lfo_depth
 local p_record, p_buffer_size
 local p_dry_gain, p_gran_gain
 local p_reverse, p_lfo_shape, p_grain_shape
+local p_rate_mean, p_rate_spread
 local p_grain_limit, p_spawn_mode
 
 -- Modes as booleans: true = mean/speed, false = spread/depth
@@ -55,13 +56,15 @@ return {
     p_reverse       = findParameter(granulator, "Reverse")
     p_grain_shape   = findParameter(granulator, "Shape")
     p_drone1_enable = findParameter(granulator, "Drone 1 enable")
+    p_rate_mean     = findParameter(granulator, "Rate mean")
+    p_rate_spread   = findParameter(granulator, "Rate spread")
     p_grain_limit   = findParameter(granulator, "Grain limit")
-    p_spawn_mode    = findParameter(granulator, "Spawn mode")  -- New spawn mode parameter
+    p_spawn_mode    = findParameter(granulator, "Spawn mode")
     
     if not (p_delay_mean and p_delay_spread and p_size_mean and p_size_spread 
        and p_pitch_mean and p_pitch_spread and p_lfo_speed and p_lfo_depth 
        and p_lfo_shape and p_record and p_buffer_size and p_dry_gain and p_gran_gain
-       and p_reverse and p_grain_shape and p_grain_limit and p_spawn_mode) then
+       and p_reverse and p_grain_shape and p_rate_mean and p_rate_spread and p_grain_limit and p_spawn_mode) then
       return "Could not find one or more Granulator parameters"
     end
 
@@ -81,8 +84,7 @@ return {
 
   pot2Turn = function(value)
     if button2Held then
-      local grainLimit = getParameter(granulator, p_grain_limit)
-      setParameterNormalized(granulator, p_grain_limit, value)
+      setParameterNormalized(granulator, p_rate_mean, value)
       button2ComboTriggered = true
     else
       if sizeMode then
@@ -97,10 +99,15 @@ return {
   end,
 
   pot3Turn = function(value)
-    if pitchMode then
-      setParameterNormalized(granulator, p_pitch_mean, value)
+    if button2Held then
+      setParameterNormalized(granulator, p_rate_spread, value)
+      button2ComboTriggered = true
     else
-      setParameterNormalized(granulator, p_pitch_spread, value)
+      if pitchMode then
+        setParameterNormalized(granulator, p_pitch_mean, value)
+      else
+        setParameterNormalized(granulator, p_pitch_spread, value)
+      end
     end
   end,
   pot3Push = function()
@@ -138,15 +145,22 @@ return {
     lfoMode = not lfoMode
   end,
   encoder2Turn = function(whichWay)
-    local step = 5
-    if lfoMode then
-      local current = getParameter(granulator, p_lfo_speed)
-      local newVal = current + whichWay * step
-      setParameter(granulator, p_lfo_speed, newVal)
+    if button2Held then
+      local current = getParameter(granulator, p_grain_limit)
+      local newVal = current + whichWay
+      setParameter(granulator, p_grain_limit, newVal)
+      button2ComboTriggered = true
     else
-      local current = getParameter(granulator, p_lfo_depth)
-      local newVal = current + whichWay * step
-      setParameter(granulator, p_lfo_depth, newVal)
+      local step = 5
+      if lfoMode then
+        local current = getParameter(granulator, p_lfo_speed)
+        local newVal = current + whichWay * step
+        setParameter(granulator, p_lfo_speed, newVal)
+      else
+        local current = getParameter(granulator, p_lfo_depth)
+        local newVal = current + whichWay * step
+        setParameter(granulator, p_lfo_depth, newVal)
+      end
     end
   end,
 
