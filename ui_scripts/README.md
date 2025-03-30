@@ -24,15 +24,18 @@ Encoder1: Click to record, turn to change buffer size
 Encoder2: LFO speed/depth
 In each of the above, click to change between mean/spread or speed/depth
 
-Button1: switch Dry gain -inf / 0dB
-  - Hold Button1 and turn (left) Encoder1 to set dry gain (remembered between toggles)
-Button 2: switch Granulator gain -inf / 0dB
-  - Hold Button2 and turn (left) Encoder1 to set granulator gain (remembered between toggles)
-Button 3: cycle between reverse probabilities 0/25/50/75/100 %
-Button 4: cycle between 3 LFO shapes Triangle/Ramp up/Ramp Down
+Button1: toggle Dry gain -inf / 0dB
+Button2: toggle Granulator gain -inf / 0dB
+Button3: cycle between reverse probabilities 0/25/50/75/100 %
+Button4: cycle between 3 LFO shapes Triangle/Ramp up/Ramp Down
 
-Hold Button 2 + press Button1: Drone 1 on/off
-Hold Button 2 + turn Pot2: Grain limit 1-40
-Hold Button 3 + press Button4: change Grain Shape
+Hold Button1 and turn (left) Encoder1 to set dry gain (remembered between toggles via Button1)
+Hold Button2 and turn (left) Encoder1 to set granulator gain (remembered between toggles via Button2)
+Hold Button2 + press Button1: Drone 1 on/off
+Hold Button2 + turn Encoder2: Grain limit 1-40
+Hold Button2 + turn Pot2: Rate mean
+Hold Button2 + turn Pot3: Rate spread
+Hold Button3 + press Button4: cycle Grain Shape
+HOld Button4 + press Button3: cycle Spawn Mode
 
 Press all four buttons at the same time to exit the UI script.
