@@ -6,7 +6,7 @@ local p_lfo_speed, p_lfo_depth
 local p_record, p_buffer_size
 local p_dry_gain, p_gran_gain
 local p_reverse, p_lfo_shape, p_grain_shape
-local p_grain_limit
+local p_grain_limit, p_spawn_mode
 
 -- Modes as booleans: true = mean/speed, false = spread/depth
 local delayMode = true   -- true: mean, false: spread
@@ -23,6 +23,7 @@ local button4Held = false
 local button1ComboTriggered = false
 local button2ComboTriggered = false
 local button3ComboTriggered = false
+local button4ComboTriggered = false
 
 local dryGain = 0
 local granulatorGain = 0
@@ -55,11 +56,12 @@ return {
     p_grain_shape   = findParameter(granulator, "Shape")
     p_drone1_enable = findParameter(granulator, "Drone 1 enable")
     p_grain_limit   = findParameter(granulator, "Grain limit")
+    p_spawn_mode    = findParameter(granulator, "Spawn mode")  -- New spawn mode parameter
     
     if not (p_delay_mean and p_delay_spread and p_size_mean and p_size_spread 
        and p_pitch_mean and p_pitch_spread and p_lfo_speed and p_lfo_depth 
        and p_lfo_shape and p_record and p_buffer_size and p_dry_gain and p_gran_gain
-       and p_reverse and p_grain_shape and p_grain_limit) then
+       and p_reverse and p_grain_shape and p_grain_limit and p_spawn_mode) then
       return "Could not find one or more Granulator parameters"
     end
 
@@ -194,6 +196,12 @@ return {
 
   button3Push = function()
     button3Held = true
+    if button4Held then
+      spawnMode = (getParameter(granulator, p_spawn_mode) + 1) % 5
+      setParameter(granulator, p_spawn_mode, spawnMode)
+      button3ComboTriggered = true
+      button4ComboTriggered = true
+    end
   end,
   button3Release = function()
     if not button3ComboTriggered then
@@ -207,21 +215,23 @@ return {
 
   button4Push = function()
     button4Held = true
-  end,
-  button4Release = function()
     if button3Held then
       local current = getParameter(granulator, p_grain_shape)
-      local newVal = current + 1
-      if newVal >= 6 then newVal = 0 end
+      local newVal = (current + 1) % 6
       setParameter(granulator, p_grain_shape, newVal)
       button3ComboTriggered = true
-    else
+      button4ComboTriggered = true
+    end
+  end,
+  button4Release = function()
+    if not button4ComboTriggered then
       local current = getParameter(granulator, p_lfo_shape)
       local newVal = current + 1
       if newVal >= 3 then newVal = 0 end
       setParameter(granulator, p_lfo_shape, newVal)
     end
     button4Held = false
+    button4ComboTriggered = false
   end,
 
   draw = function()
