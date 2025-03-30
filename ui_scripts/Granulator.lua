@@ -153,6 +153,7 @@ return {
     if button2Held then
       local drone = getParameter(granulator, p_drone1_enable)
       setParameter(granulator, p_drone1_enable, 1 - drone)
+      button1ComboTriggered = true
       button2ComboTriggered = true
     end
   end,
