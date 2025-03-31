@@ -35,14 +35,14 @@ local sequenceLength = 16
 local restProbability = 20 -- percentage
 local sequenceProbability = 50 -- Percentage of generating a new sequence
 local currentStep = 1
-local gateDuration = 200 -- Default to 200ms
-local nextGateDuration = 200 -- Default to 200ms
-local timeSinceGate = 0
+local gateDuration = 200
+local nextGateDuration = 200
 local gateActive = false
-local clockPrevState = 0
+local gateReleaseTime = 0 -- Seconds remaining until gate release
 local newSequenceGenerated = false
 local baseOctave = 0
 local sequenceCount = 0 -- Track the number of sequences generated
+local output = {}
 
 local scales = {
     {0, 2, 4, 5, 7, 9, 11}, -- Major
@@ -53,10 +53,17 @@ local scales = {
     {0, 1, 5, 7, 8}, -- Miyako Bushi
     {0, 2, 4, 6, 11} -- Prometheus
 }
+local scaleNames = {
+    "Major", "Minor", "Phrygian", "Maj Penta", "Min Penta", "Miyako Bushi",
+    "Prometheus"
+}
 local scaleIndex = 1 -- Default to Major scale
-local scale = scales[scaleIndex] -- Current scale
+local scale = scales[scaleIndex]
 local rootNote = 0 -- C
-local showNewSequenceIndicator = false -- Toggle for sequence indicator
+local rootNoteNames = {
+    "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"
+}
+local showNewSequenceIndicator = false
 
 -- Utility functions
 local function generateNote()
@@ -70,16 +77,16 @@ local function generateSequence()
     for i = 1, maxSteps do
         local isRest = math.random(100) <= restProbability
         if isRest then
-            sequence[i] = {pitch = 0, gate = false}
+            -- Use nil to indicate no pitch for rests
+            sequence[i] = {pitch = nil, gate = false}
         else
             sequence[i] = {pitch = generateNote(), gate = true}
         end
     end
     sequenceCount = sequenceCount + 1
-    showNewSequenceIndicator = not showNewSequenceIndicator -- Toggle the indicator
+    showNewSequenceIndicator = not showNewSequenceIndicator
 end
 
--- Generate initial sequence
 generateSequence()
 
 return {
@@ -88,106 +95,185 @@ return {
 
     init = function(self)
         return {
-            inputs = 1, -- Add clock input
+            inputs = {kGate, kTrigger},
             outputs = 2,
-            inputNames = {"Clock"},
+            inputNames = {"Clock Input", "Trigger Input"},
             outputNames = {"V/OCT Output", "Gate Output"},
             parameters = {
                 {"Sequence Length", 1, 32, sequenceLength, kInt},
                 {"Rest Probability", 0, 100, restProbability, kPercent},
                 {"Sequence Probability", 0, 100, sequenceProbability, kPercent},
-                {"Gate Duration", 100, 2000, gateDuration, kMs},
-                {"Base Octave", -2, 5, baseOctave, kInt}, {
-                    "Scale", {
-                        "Major", "Minor", "Phrygian", "Penta Major",
-                        "Penta Minor", "Miyako Bushi", "Prometheus"
-                    }, scaleIndex, kEnum
-                }
+                {"Gate Duration", 20, 2000, gateDuration, kMs},
+                {"Base Octave", -2, 5, baseOctave, kInt},
+                {"Scale", scaleNames, scaleIndex, kEnum},
+                {"Root Note", rootNoteNames, 0, kEnum},
+                {"Generate New", 0, 1, 0, kBool}
             }
         }
     end,
 
-    step = function(self, dt, inputs)
-        local clockInput = inputs[1] > 2.5 and 1 or 0 -- High signal threshold
-
-        -- Update parameters dynamically
-        sequenceLength = math.floor(self.parameters[1])
-        restProbability = math.floor(self.parameters[2])
-        sequenceProbability = math.floor(self.parameters[3])
-        nextGateDuration = math.floor(self.parameters[4])
-        baseOctave = math.floor(self.parameters[5])
-        scaleIndex = math.floor(self.parameters[6])
-        scale = scales[scaleIndex] -- Update scale dynamically
-
-        -- Ensure gateDuration is correctly initialized
-        if gateDuration <= 0 then gateDuration = nextGateDuration end
-
-        -- Detect clock rising edge
-        if clockInput == 1 and clockPrevState == 0 then
+    gate = function(self, input, rising)
+        if input == 1 and rising then
             currentStep = currentStep + 1
             if currentStep > sequenceLength then
                 currentStep = 1
                 if math.random(100) <= sequenceProbability then
-                    generateSequence() -- Optionally regenerate the sequence
+                    generateSequence()
                 end
             end
 
             local stepData = sequence[currentStep]
             if stepData.gate then
+                -- If this is a note, activate gate and set release timer
                 gateActive = true
-                timeSinceGate = 0
-                gateDuration = nextGateDuration -- Update gate duration
-            else
-                gateActive = false
+                gateDuration = nextGateDuration
+                -- Set gate release time to the current gate duration in seconds
+                gateReleaseTime = gateDuration / 1000
             end
         end
-
-        clockPrevState = clockInput
-
-        -- Update gate duration timing
-        if gateActive then
-            timeSinceGate = timeSinceGate + dt
-            if timeSinceGate >= gateDuration / 1000 then
-                gateActive = false
-            end
-        end
-
-        -- Outputs
-        local pitchOut = sequence[currentStep].pitch
-        local gateOut = gateActive and 5 or 0 -- 5V for gate high, 0V for gate low
-
-        return {pitchOut, gateOut}
     end,
 
-    draw = function(self)
-        -- Improved representation of the sequence
-        local xStart = 0
-        local yStart = 50 -- Adjusted to free up space for sequence squares
-        local stepWidth = 6
-        local stepHeight = 12
-        local spacing = 2
+    trigger = function(self, input) if input == 2 then currentStep = 1 end end,
 
-        -- Display sequence indicator and count
-        if showNewSequenceIndicator then
-            drawText(0, yStart - 15, "*") -- Draw asterisk above the sequence
+    step = function(self, dt, inputs)
+        sequenceLength = self.parameters[1]
+        restProbability = self.parameters[2]
+        sequenceProbability = self.parameters[3]
+        nextGateDuration = self.parameters[4]
+        baseOctave = self.parameters[5]
+        scaleIndex = self.parameters[6]
+        rootNote = self.parameters[7] - 1
+        scale = scales[scaleIndex]
+
+        if self.parameters[8] == 1 then generateSequence() end
+
+        if gateDuration <= 0 then gateDuration = nextGateDuration end
+
+        -- Count down the gate release timer
+        if gateActive and gateReleaseTime > 0 then
+            gateReleaseTime = gateReleaseTime - dt
+
+            -- Check if gate should be released
+            if gateReleaseTime <= 0 then gateActive = false end
         end
-        drawText(0, yStart - 30, "Seq: " .. sequenceCount) -- Display sequence count
+
+        output[1] = sequence[currentStep].pitch
+        output[2] = gateActive and 5 or 0
+
+        return output
+    end,
+
+    ui = function(self) return true end,
+
+    setupUi = function(self)
+        return {
+            ((self and self.parameters and self.parameters[2]) or
+                restProbability) / 100.0,
+            ((self and self.parameters and self.parameters[3]) or
+                sequenceProbability) / 100.0,
+            ((self and self.parameters and self.parameters[4]) or gateDuration) /
+                2000.0
+        }
+    end,
+
+    encoder1Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 6,
+                     self.parameters[6] + value)
+    end,
+
+    encoder2Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 7,
+                     self.parameters[7] + value)
+    end,
+
+    pot1Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 2, value * 100.0)
+    end,
+
+    pot2Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 3, value * 100.0)
+    end,
+
+    pot2Push = function(self, value) exit() end,
+
+    pot3Turn = function(self, value)
+        algorithm = getCurrentAlgorithm()
+        setParameter(algorithm, self.parameterOffset + 4, value * 2000.0)
+    end,
+
+    encoder2Push = function(self, value) generateSequence() end,
+
+    draw = function(self)
+        local margin = 4
+
+        local titleX = margin
+        local titleY = 10
+        local seqInfoX = margin
+        local seqInfoY = 25
+        local stepInfoX = 150
+        local stepInfoY = 25
+
+        drawTinyText(titleX, titleY, "Proteus Generative Sequencer")
+
+        local scaleText = rootNoteNames[(rootNote % 12) + 1] .. " " ..
+                              scaleNames[scaleIndex]
+        drawText(seqInfoX, seqInfoY, scaleText)
+
+        local gridX = margin
+        local gridY = 35
+        local cellWidth = 12
+        local cellHeight = 12
+        local spacing = 2
+        local cellsPerRow = 8
 
         for i = 1, sequenceLength do
             local stepData = sequence[i]
-            local x = xStart + (i - 1) * (stepWidth + spacing)
-            local y = yStart
+            local row = math.floor((i - 1) / cellsPerRow)
+            local col = (i - 1) % cellsPerRow
 
-            if stepData.gate then
-                drawRectangle(x, y, x + stepWidth, y + stepHeight, 1)
-            else
-                drawRectangle(x, y, x + stepWidth, y + stepHeight, 0)
-            end
+            local x = gridX + col * (cellWidth + spacing)
+            local y = gridY + row * (cellHeight + spacing)
 
-            if i == currentStep then
-                drawRectangle(x - 1, y - 1, x + stepWidth + 1,
-                              y + stepHeight + 1, 2)
+            local brightness = 1
+            if stepData.gate then brightness = 8 end
+            if i == currentStep then brightness = 15 end
+
+            drawRectangle(x, y, x + cellWidth, y + cellHeight, brightness)
+
+            -- Only draw pitch line for non-nil pitch values
+            if stepData.pitch ~= nil then
+                local pitchValue = (stepData.pitch * 12) % 12
+                local pitchHeight = math.floor((cellHeight - 4) *
+                                                   (pitchValue / 12))
+                drawLine(x + 2, y + pitchHeight + 2, x + cellWidth - 2,
+                         y + pitchHeight + 2, 0)
             end
         end
+
+        local paramsX = 150
+        local paramsY = 26
+        local lineHeight = 8
+
+        drawTinyText(paramsX, paramsY,
+                     "Step: " .. currentStep .. "/" .. sequenceLength)
+        drawTinyText(paramsX, paramsY + lineHeight,
+                     "Rest: " .. restProbability .. "%")
+        drawTinyText(paramsX, paramsY + lineHeight * 2,
+                     "Seq Prob: " .. sequenceProbability .. "%")
+        drawTinyText(paramsX, paramsY + lineHeight * 3,
+                     "Gate: " .. gateDuration .. "ms")
+        drawTinyText(paramsX, paramsY + lineHeight * 4, "Octave: " .. baseOctave)
+
+        drawTinyText(paramsX, paramsY + lineHeight * 6,
+                     "Sequences: " .. sequenceCount)
+        if showNewSequenceIndicator then
+            drawText(paramsX + 75, paramsY + lineHeight * 6, "*")
+        end
+
+        return true
     end
 }
