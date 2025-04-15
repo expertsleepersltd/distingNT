@@ -16,6 +16,9 @@ Example script from the user manual; controls an Augustus Loop.
 A simple example script, corresponding to the [LFO.json](../presets/LFO.json) factory preset.
 
 ## Granulator.lua
+[Granulator.lua](Granulator.lua)
+
+UI script making most parameters of the Granulator algorithm accessible directly via the pots, encoders, and buttons - or combinations thereof. Before running the script, make sure the granulator algorithm has already been added, and is named "Granulator".
 
 Pot1: Grain delay (=position) mean/spread
 Pot2: Grain size mean/spread
@@ -36,6 +39,6 @@ Hold Button2 + turn Encoder2: Grain limit 1-40
 Hold Button2 + turn Pot2: Rate mean
 Hold Button2 + turn Pot3: Rate spread
 Hold Button3 + press Button4: cycle Grain Shape
-HOld Button4 + press Button3: cycle Spawn Mode
+Hold Button4 + press Button3: cycle Spawn Mode
 
 Press all four buttons at the same time to exit the UI script.
