@@ -709,23 +709,28 @@ function processEnumStrings( data ) {
 	}
 }
 
-var mappingVersion = 3;
+var mappingVersion = 4;
 
 function processMapping( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let c = 3;
 	let version = data[c]; c++;
-	if ( version < 1 || version > 3 ) {
+	if ( version < 1 || version > 4 ) {
 		alert( "Unknown mapping data version" );
 		return;
 	}
 	mappingVersion = version;
 	{
+		let source = 0;
+		if ( version >= 4 ) {
+			source = data[c]; c++;
+		}
 		let input = data[c]; c++;
 		let flags = data[c]; c++;
 		let volts = data[c]; c++;
 		let delta = extractShort( data.slice( c, c+3 ) ); c += 3;
 
+		document.getElementById( "p" + p + "_source" ).value = source;
 		document.getElementById( "p" + p + "_cv_input" ).value = input;
 		document.getElementById( "p" + p + "_cv_uni" ).checked = flags & 1;
 		document.getElementById( "p" + p + "_cv_gate" ).checked = flags & 2;
@@ -826,9 +831,9 @@ function processNumParameters( data ) {
 function parameterTableHeader() {
 	let str = "";
 	str += "<thead>";
-	str += "<tr><th colspan=8>Preset</th><th colspan=5 class='map_cv'>CV Mapping</th><th colspan=7 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
+	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=7 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
 	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
-	str += "<th class='map_cv'>Source</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
+	str += "<th class='map_cv'>Source</th><th class='map_cv'>Bus</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
 	str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
 	str += "</tr>";
@@ -855,6 +860,11 @@ function tableRowForParameter( i ) {
 		str += "</td>";
 
 		{
+			str += "<td class='map_cv'><select id=p" + i + "_source onchange='mapping_cv_source(" + i + ")'><option value=0>Own inputs</option><option value=1>Module inputs</option>";
+			for ( let j=1; j<=32; ++j ) {
+				str += "<option value=" + (1+j) + ">" + j + "</option>";
+			}
+			str += "</select></td>";
 			str += "<td class='map_cv'><select id=p" + i + "_cv_input onchange='mapping_cv_input(" + i + ")'><option value=0>None</option>";
 			for ( let j=1; j<=12; ++j ) {
 				str += "<option value=" + j + ">Input " + j + "</option>";
@@ -1169,6 +1179,7 @@ function param_focus( p ) {
 }
 
 function mapping_send( p ) {
+	let source = document.getElementById( "p" + p + "_source" ).value;
 	let input = document.getElementById( "p" + p + "_cv_input" ).value;
 	let cv_uni = document.getElementById( "p" + p + "_cv_uni" ).checked;
 	let cv_gate = document.getElementById( "p" + p + "_cv_gate" ).checked;
@@ -1178,7 +1189,11 @@ function mapping_send( p ) {
 
 	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4D, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion, input, flags, volts, (delta>>14)&3, (delta>>7)&0x7f, delta&0x7f, 0xF7 ];
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x4D, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion ];
+	if ( mappingVersion >= 4 ) {
+		arr.push( source );
+	}
+	arr.push( input, flags, volts, (delta>>14)&3, (delta>>7)&0x7f, delta&0x7f, 0xF7 );
 	output.send( arr );
 	let dd = log( "sent CV mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
@@ -1190,6 +1205,9 @@ function style_cv_input( p ) {
 	e.style.background = v > 0 ? "chartreuse" : "";
 }
 
+function mapping_cv_source( p ) {
+	mapping_send( p );
+}
 function mapping_cv_input( p ) {
 	style_cv_input( p );
 	mapping_send( p );
