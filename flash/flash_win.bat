@@ -11,6 +11,7 @@ if not exist "%1" (
   exit /B 2
 )
 
+SET "SPT_WORKSPACE=%~dp1%1"
 SET "SPT_INSTALL_BIN=."
 
 call %1/write_image_win.bat

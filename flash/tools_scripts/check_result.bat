@@ -18,6 +18,7 @@ set "secure_boot_enabled=10001 (0x2711)"
 set "rtxxx_secured_legacy_blhost=Response word 1 = -1019428036 (0xc33cc33c)"
 set "rtxxx_secured_spsdk_blhost=Response word 1 = 3275539260 (0xc33cc33c)"
 set "hab_enabled_blhost=Security State = SECURE"
+set "timeout_error=See debug log file"
 
 @rem store command output into the temporary file
 :temp_loop
@@ -33,6 +34,11 @@ type %TEMPFILE%
 if not "%~1" == "sdphost" goto blhost
 @rem ************** sdphost checks 
 findstr "/C:%success%" "%TEMPFILE%" > NUL
+if %ERRORLEVEL% == 0 (
+	set /A result=0
+)
+
+findstr "/C:%timeout_error%" "%TEMPFILE%" > NUL
 if %ERRORLEVEL% == 0 (
 	set /A result=0
 )
