@@ -1,4 +1,5 @@
 
+@echo off
 SETLOCAL enableDelayedExpansion
 set /A result=2
 set /A found_error=0
