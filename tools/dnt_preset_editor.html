@@ -751,7 +751,9 @@ function processMapping( data ) {
 		if ( flags & 4 ) {
 			cc = 128;
 		}
+		let type = ( flags2 & 4 ) ? ( ( flags2 & 2 ) ? 2 : 1 ) : 0;
 		document.getElementById( "p" + p + "_midi_ch" ).value = ( flags >> 3 ) & 0xf;
+		document.getElementById( "p" + p + "_midi_type" ).value = type;
 		document.getElementById( "p" + p + "_midi_cc" ).value = cc;
 		document.getElementById( "p" + p + "_midi_en" ).checked = flags & 1;
 		document.getElementById( "p" + p + "_midi_sym" ).checked = flags & 2;
@@ -831,10 +833,10 @@ function processNumParameters( data ) {
 function parameterTableHeader() {
 	let str = "";
 	str += "<thead>";
-	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=7 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
+	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
 	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
 	str += "<th class='map_cv'>Source</th><th class='map_cv'>Bus</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
-	str += "<th class='map_midi'>Channel</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
+	str += "<th class='map_midi'>Channel</th><th class='map_midi'>Type</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
 	str += "</tr>";
 	str += "</thead>";
@@ -886,6 +888,10 @@ function tableRowForParameter( i ) {
 			for ( let j=0; j<16; ++j ) {
 				str += "<option value=" + j + ">" + (j+1) + "</option>";
 			}
+			str += "</select></td>";
+			str += "<td class='map_midi'><select id=p" + i + "_midi_type class='param_v' onchange='mapping_midi_type(" + i + ")'>";
+			str += "<option value=0>CC</option><option value=1>Note - momentary</option><option value=2>Note - toggle</option>";
+			str += "</select></td>";
 			str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
 			for ( let j=0; j<128; ++j ) {
 				str += "<option value=" + j + ">" + j + "</option>";
@@ -1230,12 +1236,15 @@ function mapping_cv_delta( p ) {
 
 function mapping_midi( p ) {
 	let ch = document.getElementById( "p" + p + "_midi_ch" ).value;
+	let type = document.getElementById( "p" + p + "_midi_type" ).value;
 	let cc = document.getElementById( "p" + p + "_midi_cc" ).value;
 	let en = document.getElementById( "p" + p + "_midi_en" ).checked;
 	let sym = document.getElementById( "p" + p + "_midi_sym" ).checked;
 	let rel = document.getElementById( "p" + p + "_midi_rel" ).checked;
 	let flags = en | ( sym << 1 ) | ( ( ch & 0xf ) << 3 );
-	let flags2 = rel;
+	let toggle = ( type == 2 );
+	let mtype = ( type != 0 );
+	let flags2 = rel | ( toggle << 1 ) | ( mtype << 2 );
 	let min = document.getElementById( "p" + p + "_midi_min" ).value;
 	let max = document.getElementById( "p" + p + "_midi_max" ).value;
 
@@ -1257,6 +1266,9 @@ function mapping_midi( p ) {
 }
 
 function mapping_midi_ch( p ) {
+	mapping_midi( p );
+}
+function mapping_midi_type( p ) {
 	mapping_midi( p );
 }
 function mapping_midi_cc( p ) {
