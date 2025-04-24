@@ -24,6 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
+-- test that require works
+require 'complex'
+local c = complex.add( complex.i, complex.new( 10, 20 ) )
+
 local time = 0
 local f = 2 * math.pi
 local x = 0
