@@ -58,7 +58,7 @@ local RootNoteNames = {
 
 -- Helper function to update sequencer config based on parameters
 -- This is defined outside the returned table so it can be called by init and step
-local function _update_sequencer_config(self) -- Removed seed_changed parameter
+local function _update_sequencer_config(self)
     if not self.parameters or not self.param_indices or not self.sequencer then
         -- Not fully initialized yet
         return false -- Indicate no update was performed
@@ -147,10 +147,7 @@ end
 
 -- Helper function to randomize the sequence
 local function _randomize_sequence(self)
-    print(self.name .. ": Randomizing sequence")
     -- Explicitly update the stored random generator based on current seed
-    -- local prob_seed = self.parameters[self.param_indices.probability_seed] -- REMOVED
-    -- self.sequencer.rand_gen = lcg(prob_seed) -- Recreate the generator -- REMOVED
 
     self.expanded = self.sequencer:expand()
     self.events = self.sequencer:interpret(self.expanded)
@@ -173,8 +170,6 @@ return {
 
     -- == Initialization Function (Called once on script load) ==
     init = function(self)
-        print(self.name .. ": init called") -- Use self.name for consistency
-
         -- Default values for parameters if not loaded from state
         local initial_iterations = 3
         local initial_randomize = 1 -- Off
@@ -191,34 +186,39 @@ return {
         local initial_duration_macro = 50 -- Default middle range
         local initial_probability_mix = 64 -- Default mid-point (0.5 probability, 0-127 range)
 
-        -- Access state loaded from preset (if serialise is used)
-        if self.state then
-            print(self.name .. ": Found saved state")
-            initial_iterations = self.state.iterations or initial_iterations
-            initial_randomize = self.state.randomize or initial_randomize
-            initial_root_note_idx = self.state.root_note_idx or
-                                        initial_root_note_idx
-            initial_scale_idx = self.state.scale_idx or initial_scale_idx
-            initial_velocity_macro = self.state.velocity_macro or
-                                         initial_velocity_macro
-            initial_duration_macro = self.state.duration_macro or
-                                         initial_duration_macro
-            initial_probability_mix = self.state.probability_mix or
-                                          initial_probability_mix -- Load saved mix value
-            -- Note: We calculate base_midi from root_note_idx, don't need to save it directly
-        end
-
         -- Store parameter indices for later use in step/trigger/etc.
         -- Ensure these are defined *before* parameters table and _update_sequencer_config call
         self.param_indices = {
             iterations = 1,
             root_note = 2,
             scale = 3,
-            velocity_macro = 4, -- New Pot 1
-            duration_macro = 5, -- New Pot 2
-            probability_mix = 6, -- Renamed index for Pot 3
-            randomize = 7 -- Moved to last
+            velocity_macro = 4,
+            duration_macro = 5,
+            probability_mix = 6,
+            randomize = 7
         }
+
+        if self.parameters then
+            initial_iterations =
+                self.parameters[self.param_indices.iterations] or
+                    initial_iterations
+            initial_randomize = self.parameters[self.param_indices.randomize] or
+                                    initial_randomize
+            initial_root_note_idx =
+                self.parameters[self.param_indices.root_note] or
+                    initial_root_note_idx
+            initial_scale_idx = self.parameters[self.param_indices.scale] or
+                                    initial_scale_idx
+            initial_velocity_macro = self.parameters[self.param_indices
+                                         .velocity_macro] or
+                                         initial_velocity_macro
+            initial_duration_macro = self.parameters[self.param_indices
+                                         .duration_macro] or
+                                         initial_duration_macro
+            initial_probability_mix = self.parameters[self.param_indices
+                                          .probability_mix] or
+                                          initial_probability_mix -- Load saved mix value
+        end
 
         -- Store current parameters locally for _update_sequencer_config
         -- We need this because self.parameters is not fully populated until the return
@@ -250,8 +250,6 @@ return {
             iterations = initial_iterations,
             base_note = base_midi_note,
             scale = selected_scale
-            -- probability_seed removed
-            -- velocity_range, duration_range, probabilities will be set by helper
         }
         self.sequencer = LSystemSequencer.new(temp_config)
 
@@ -600,12 +598,7 @@ return {
         return true
     end,
 
-    ui = function(self)
-        -- Return true if this script handles UI events directly
-        -- (pots, encoders, buttons) via the functions below.
-        -- If true, setupUi and the relevant handlers should usually be defined.
-        return true
-    end,
+    ui = function(self) return true end,
 
     encoder1Turn = function(self, delta)
         local algIdx = getCurrentAlgorithm()
@@ -642,7 +635,6 @@ return {
         -- Called when the UI is focused on this script if ui() returns true.
         -- Returns the current normalized values for the parameters controlled by pots
         -- to synchronize the hardware display/behavior.
-        print(self.name .. ": setupUi called")
         local pot_values = {}
         if self.parameters and self.param_indices then
             local vel_macro = self.parameters[self.param_indices.velocity_macro]
@@ -689,27 +681,5 @@ return {
         local newVal = value * 127
         newVal = math.max(0, math.min(newVal, 127)) -- Clamp 0-127
         setParameter(algIdx, self.parameterOffset + paramIdx, newVal)
-    end,
-
-    -- Add serialise function to save state
-    serialise = function(self)
-        local state = {}
-        if self.parameters and self.param_indices then
-            state.iterations = self.parameters[self.param_indices.iterations]
-            state.root_note_idx = self.parameters[self.param_indices.root_note]
-            state.scale_idx = self.parameters[self.param_indices.scale]
-            state.velocity_macro = self.parameters[self.param_indices
-                                       .velocity_macro]
-            state.duration_macro = self.parameters[self.param_indices
-                                       .duration_macro]
-            state.probability_mix = self.parameters[self.param_indices
-                                        .probability_mix] -- Save mix value
-            state.randomize = self.parameters[self.param_indices.randomize]
-            print(self.name .. ": Serialising state")
-        else
-            print(self.name .. ": Cannot serialise, parameters not available")
-        end
-        return state
     end
-
 } -- End of main return table
