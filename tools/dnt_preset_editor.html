@@ -99,6 +99,9 @@ button.moveSlot {
 
 <script>
 function log( t ) {
+	if ( !document.getElementById( "show_log" ).checked ) {
+		return;
+	}
 	var ta = document.getElementById( "log" );
 	var d = new Date();
 	var dd = d.toLocaleTimeString();
@@ -128,6 +131,9 @@ function makeMsgSysEx() {
 	return str;
 }
 function dumpSysex( data, id, prefix ) {
+	if ( !document.getElementById( "show_log" ).checked ) {
+		return;
+	}
 	let len = data.length
 	let h = prefix
 	for ( let i = 0; i < len; ++i ) {
@@ -181,12 +187,13 @@ for ( let i=0; i<32; ++i ) {
 }
 </script>
 </select>
+<label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
 <button onclick="wake()">Wake</button>
 <p>
 <label class="hidden" for="log">Log:</label><textarea rows=5 cols=50 id="log" accesskey="l" class="log" readOnly></textarea>
-<label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y"></textarea>
-<label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x"></textarea>
+<label class="hidden" for="txSysex">SysEx sent:</label><textarea rows=5 cols=45 name="text" id="txSysex" accesskey="y" class="log"></textarea>
+<label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x" class="log"></textarea>
 </p>
 
 <button class="big" onclick="showSlotEditor()">Edit parameters</button>
@@ -276,6 +283,27 @@ function showRoutingAnalysis() {
 	document.getElementById( "routingAnalysis" ).style.display = "inline";
 }
 document.getElementById( "routingAnalysis" ).style.display = "none";
+
+const dntLogKey = "dntShowLog";
+
+function updateLogVisibility() {
+	let vis = document.getElementById( "show_log" ).checked ? "inline" : "none";
+	let elts = document.getElementsByClassName( 'log' );
+	for ( let e of elts ) {
+    	e.style.display = vis;
+	}
+}
+
+function showLog() {
+	updateLogVisibility();
+    localStorage.setItem( dntLogKey, document.getElementById( "show_log" ).checked );
+}
+
+if ( !localStorage.getItem( dntLogKey ) ) {
+    localStorage.setItem( dntLogKey, 1 );
+}
+document.getElementById( 'show_log' ).checked = ( localStorage.getItem( dntLogKey ) != 'false' );
+updateLogVisibility();
 
 function setDisplayMode( m ) {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
