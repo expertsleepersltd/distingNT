@@ -1,0 +1,138 @@
+{
+"kind": "disting NT preset",
+ "author": "Expert Sleepers Ltd  ",
+ "saved-from": ["v1.9.0beta","May 13 2025 14:10:33"]
+ ,
+ "engine": {
+ "sampleRate": 48000,
+  "blockSize": 24}
+ ,
+ "version": 2,
+ "name": "Barberpole Phaser   ",
+ "slots": [{
+  "guid": "note",
+   "specs": [0,0,0]
+   ,
+   "lines": ["An implementation of a "," 'Barberpole' phaser, after "," Harald Bode. ","Bypass the Phaser and unbypass "," the Delay for an alternative"," sound."," "]
+   ,
+   "name": "Notes                  ",
+   "parameters": [0,0,0,0,0,0,0,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "fbrx",
+   "specs": [1,0,0]
+   ,
+   "name": "Feedback Receive       ",
+   "parameters": [[0,1]
+    ,[13,0,-400]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "satu",
+   "specs": [1,0,0]
+   ,
+   "name": "Saturation             ",
+   "parameters": [[0,0,0,0]
+    ,[13,1]
+    ]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "delm",
+   "specs": [1,0,0]
+   ,
+   "name": "Delay (Mono)           ",
+   "parameters": [1,1,13,0,100,0,1,0,0,0,0,0,1,1,9,1,1]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "phas",
+   "specs": [0,0,0]
+   ,
+   "name": "Phaser                 ",
+   "parameters": [0,0,1,1,13,0,-500,16,0,0,20,100,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "fqsh",
+   "specs": [0,0,0]
+   ,
+   "name": "Frequency Shifter      ",
+   "parameters": [0,0,13,1,13,1,0,0,238,0,1,100,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "fbtx",
+   "specs": [1,0,0]
+   ,
+   "name": "Feedback Send          ",
+   "parameters": [[0,1]
+    ,[1,13]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "mix1",
+   "specs": [2,0,0]
+   ,
+   "channelNames": [" "," "]
+   ,
+   "name": "Mixer Mono             ",
+   "parameters": [[0,13,14,0,1]
+    ,[]
+    ,[[[1,0,0,0,0]
+      ]
+     ,[[13,0,0,0,0]
+      ]
+     ]
+    ]
+   ,
+   "ui": {
+   "page": 2,
+    "items": [2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ]
+ ,
+ "ui": {
+ "currentSlot": 0,
+  "displayMode": "algorithm"}
+ }
