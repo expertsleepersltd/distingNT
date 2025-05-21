@@ -1,0 +1,113 @@
+{
+"kind": "disting NT preset",
+ "author": "Expert Sleepers Ltd  ",
+ "saved-from": ["v1.9.0beta","May 21 2025 12:32:20"]
+ ,
+ "engine": {
+ "sampleRate": 48000,
+  "blockSize": 24}
+ ,
+ "version": 2,
+ "name": "Radio Musique       ",
+ "slots": [{
+  "guid": "note",
+   "specs": [0,0,0]
+   ,
+   "lines": ["Continuously plays randomised"," samples, in the manner of"," Music Thing Modular's"," Radio Music module.","Try it with e.g."," https://archive.org/details/"," 1930-1937RadioNews"]
+   ,
+   "name": "Read me                ",
+   "parameters": [0,0,0,0,0,0,0,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "xaoc",
+   "specs": [0,0,0]
+   ,
+   "name": "Chaos                  ",
+   "parameters": [0,-30,0,0,0,0,100,0,100,0,100,-35,0,0,0,0,17,0,0]
+   ,
+   "ui": {
+   "page": 2,
+    "items": [1,5,4,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "sams",
+   "specs": [0,0,0]
+   ,
+   "folder": "1930-1937RadioNews",
+   "sample": "1924-09-12 WLAG National Defense Day.wav",
+   "name": "Sample Player (Speed)  ",
+   "parameters": [0,3,{
+    "v": 0,
+     "cv": {
+     "input": 17,
+      "unipolar": 0,
+      "isGate": 0,
+      "volts": 5,
+      "delta": 10}
+     }
+    ,0,0,0,13,14,0,0,0,0,48,100,0,0,60,100,77,1,127,0,2,1000,0,0,0,0,0,0,4,0,0,1,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [7,1,0,2,1,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "xaoc",
+   "specs": [0,0,0]
+   ,
+   "name": "Chaos(2)               ",
+   "parameters": [0,-10,0,0,0,0,100,0,100,0,100,-80,15,0,0,0,0,0,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [1,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "delt",
+   "specs": [2,1,0]
+   ,
+   "name": "Delay (Tape)           ",
+   "parameters": [0,13,14,13,14,0,0,0,100,{
+    "v": 55,
+     "cv": {
+     "input": 15,
+      "unipolar": 1,
+      "isGate": 0,
+      "volts": 5,
+      "delta": 110}
+     }
+    ,250,{
+    "v": 0,
+     "cv": {
+     "input": 15,
+      "unipolar": 0,
+      "isGate": 0,
+      "volts": 10,
+      "delta": 100}
+     }
+    ]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ]
+ ,
+ "ui": {
+ "currentSlot": 2,
+  "displayMode": "algorithm"}
+ }
