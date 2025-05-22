@@ -1,5 +1,8 @@
 -- Bouncy
--- Bouncing ball test script
+--[[
+Bouncing ball test script.
+A general testing ground for scripting features.
+]]
 --[[
 MIT License
 
@@ -35,6 +38,7 @@ local y = 0
 local dx = 5
 local dy = 6.7
 local bing = 0.0
+local lastMessage = ''
 local gateState = false
 
 local toScreenX = function( x )
@@ -73,7 +77,9 @@ return
 			,	{ "Min Y", -100, 100, -100, kVolts, kBy10 }	-- min, max, default, unit, scale
 			,	{ "Max Y", -100, 100,  100, kVolts, kBy10 }
 			,	{ "Edges", { "Bounce", "Warp" }, 1 }		-- enums, default
+			,	{ "MIDI channel", 0, 16, 0 }
 			}
+		,	midi = { channelParameter = 6, messages = { "note", "cc", "bend", "aftertouch", "poly pressure", "program change" } }
 		}
 	end
 	
@@ -126,6 +132,14 @@ return
 		return out
 	end
 
+,	midiMessage = function( self, message )
+		if message[1] == 0x90 then
+			lastMessage = "None on " .. message[2] .. " vel " .. message[3]
+		elseif message[1] == 0x80 then
+			lastMessage = "None off " .. message[2] .. " vel " .. message[3]
+		end
+	end
+	
 ,	pot2Turn = function( self, x )
 		local alg = getCurrentAlgorithm()
 		local p = self.parameterOffset + 1 + x * 3.5
@@ -176,6 +190,8 @@ return
 		end
 		
 		drawText( 100, 40, gateState and "Open" or "Closed" )
+
+		drawText( 100, 50, lastMessage )
 	end
 	
 }
