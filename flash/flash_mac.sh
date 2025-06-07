@@ -12,6 +12,6 @@ fi
 
 export "SPT_INSTALL_BIN=."
 
-$1/write_image_mac.sh
+"$1/write_image_mac.sh"
 
 blhost -u 0x15A2,0x0073 reset
