@@ -223,6 +223,7 @@ Module display mode:
 <label id='spec3label' for="spec3"></label>
 <input id='spec3' type='number'></input>
 <button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
+<button id='loadPluginButton' onclick='loadPlugin()'>Load</button>
 <p>
 <label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
 <label for="show_mapping_cv">Show CV mappings:</label>
@@ -409,6 +410,9 @@ function processAlgorithmInfo( data ) {
 		names.push( name );
 	}
 	factory.push( names );
+	let isPlugin = data[c++];
+	let isLoaded = data[c++];
+	factory.push( [ isPlugin, isLoaded ] );
 	if ( index == 0 ) {
 		factories = [];
 	}
@@ -1503,6 +1507,8 @@ function changeAlgorithm() {
 			document.getElementById( 'spec' + (i+1) ).style='display:none;';
 		}
 	}
+	let unloadedPlugin = factory[4][0] && !factory[4][1];
+	document.getElementById( 'loadPluginButton' ).disabled = !unloadedPlugin;
 }
 
 function addAlgorithm() {
@@ -1520,6 +1526,18 @@ function addAlgorithm() {
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x32, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, (specs[2]>>14)&3, (specs[2]>>7)&0x7f, specs[2]&0x7f, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent add algorithm request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	changeSlot();
+}
+
+function loadPlugin() {
+	let index = document.getElementById( 'algorithms_menu' ).value;
+	let factory = factories[ index ];
+	let guid = factory[ 0 ];
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x38, guid[0], guid[1], guid[2], guid[3], 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent load plug-in request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 	changeSlot();
 }
