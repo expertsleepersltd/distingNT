@@ -891,6 +891,7 @@ function tableRowForParameter( i ) {
 		str += "<select id=p" + i + "_e class='param_e' onchange='param_enum(" + i + ")' style='display:none;'" + focus + "></select>";
 		str += "<input id=p" + i + "_c type='checkbox' class='param_c' onchange='param_check(" + i + ")' style='display:none;'" + focus + ">";
 		str += "<div class='pv_string' id=p" + i + "_pv></div>";
+		str += "<input id=p" + i + "_n type='text' class='param_n' onchange='param_string(" + i + ")' style='display:none;'" + focus + ">";
 		str += "</td>";
 
 		{
@@ -1020,6 +1021,10 @@ function processParameterInfo( data ) {
 	} else if ( unit == 13 || unit == 14 || unit == 17 ) {
 		unitStr = "<br>";
 		setTimeout( requestParameterValueString, 1000, p );
+		if ( unit == 17 ) {
+			document.getElementById( "p" + p + "_pv" ).style = 'display:none;';
+			document.getElementById( "p" + p + "_n" ).style = 'display:inline;';
+		}
 	} else if ( unit > 0 && (unit-1) < unitStrings.length ) {
 		unitStr = unitStrings[ unit-1 ];
 	}
@@ -1069,6 +1074,7 @@ function processParameterValueString( data ) {
 		name += String.fromCharCode( n );
 	}
     document.getElementById( "p" + p + "_pv" ).innerHTML = name;
+    document.getElementById( "p" + p + "_n" ).value = name;
 }
 
 function processParameterPages( data ) {
@@ -1203,6 +1209,22 @@ function param_text( p ) {
 	let v = document.getElementById( "p" + p + "_v" ).value;
 	v *= document.getElementById( "p" + p + "_scl" ).innerHTML;
 	sendSetValue( p, v );
+}
+
+function param_string( p ) {
+	let v = document.getElementById( "p" + p + "_n" ).value;
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x53, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f ];
+	for ( let i = 0; i < v.length; ++i ) {
+		arr.push( v.charCodeAt( i ) );
+	}
+	arr.push( 0x00 );
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent parameter update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	setTimeout( requestParameterValueString, 10, p );
 }
 
 function param_focus( p ) {
