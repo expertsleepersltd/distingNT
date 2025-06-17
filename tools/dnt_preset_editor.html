@@ -189,6 +189,7 @@ for ( let i=0; i<32; ++i ) {
 </select>
 <label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
+<label for="show_cpu">Show CPU:</label><input id='show_cpu' type='checkbox' onchange='showCPU()'>
 <button onclick="wake()">Wake</button>
 <p>
 <label class="hidden" for="log">Log:</label><textarea rows=5 cols=50 id="log" accesskey="l" class="log" readOnly></textarea>
@@ -203,6 +204,7 @@ Module display mode:
 <button onclick="setDisplayMode(1)">Algorithm UI</button>
 <button onclick="setDisplayMode(2)">Overview</button>
 <button onclick="setDisplayMode(3)">Overview VUs</button>
+<div id='cpu_usage'></div>
 <hr>
 
 <div id=slotEditor>
@@ -305,6 +307,37 @@ if ( !localStorage.getItem( dntLogKey ) ) {
 }
 document.getElementById( 'show_log' ).checked = ( localStorage.getItem( dntLogKey ) != 'false' );
 updateLogVisibility();
+
+const dntCPUKey = "dntShowCPU";
+
+function updateCPUVisibility() {
+	let show = document.getElementById( "show_cpu" ).checked;
+	document.getElementById( "cpu_usage" ).style.display = show ? "inline" : "none";
+	if ( show ) {
+		setTimeout( getCPU, 10 );
+	}
+}
+
+function showCPU() {
+	updateCPUVisibility();
+    localStorage.setItem( dntCPUKey, document.getElementById( "show_cpu" ).checked );
+}
+
+if ( !localStorage.getItem( dntCPUKey ) ) {
+    localStorage.setItem( dntCPUKey, 1 );
+}
+document.getElementById( 'show_cpu' ).checked = ( localStorage.getItem( dntCPUKey ) != 'false' );
+
+function getCPU() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x62, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent CPU usage request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	if ( document.getElementById( "show_cpu" ).checked ) {
+		setTimeout( getCPU, 1000 );
+	}
+}
 
 function setDisplayMode( m ) {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
@@ -471,6 +504,13 @@ function processRoutingInfo( data ) {
 	if ( slot == ( slotCount - 1 ) ) {
 		buildRoutingInfo();
 	}
+}
+
+function processCPUUsage( data ) {
+	let cpu1 = data[0];
+	let cpu2 = data[1];
+	// data[2] and onwards are the usages for each slot
+	document.getElementById( "cpu_usage" ).innerHTML = "CPU: " + cpu1 + '% ' + cpu2 + '%';
 }
 
 function netInputMask( r ) {
@@ -1472,6 +1512,7 @@ function onMIDISuccess(midiAccess) {
 	log( "midi access granted" );
     status("OK");
     initView();
+	updateCPUVisibility();
 
     // Set the slot number from the query string
     let { slot } = getQueryParams();
@@ -1685,6 +1726,8 @@ function onMIDIMessage(message) {
 		processSlotCount( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x61 ) {
 		processRoutingInfo( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x62 ) {
+		processCPUUsage( data.slice( 7, -1 ) );
 	}
 }
 
