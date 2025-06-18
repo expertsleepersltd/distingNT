@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<head>
+
+<title>disting NT SD Card Tool</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans">
+
+<style>
+body {
+	font-family: 'PT Sans', serif;
+}
+button {
+	font-family: 'PT Sans', serif;
+}
+button.big {
+	font-size: 120%;
+}
+select {
+	font-family: 'PT Sans', serif;
+}
+div.small {
+	font-size: 80%;
+}
+td.tc {
+	text-align: center;
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+tr.a {
+	background-color: #e0e0e0;
+}
+th {
+	background-color: #c0c0c0;
+	font-size: 80%;
+}
+textarea {
+    font-family: monospace;
+}
+div.upload {
+	border: 1px;
+	border-style: dotted;
+	display: inline-block;
+}
+input#chooseFile {
+	width: 50em;
+}
+input#rename_text {
+	width: 50em;
+}
+</style>
+
+<script>
+function log( t ) {
+	if ( !document.getElementById( "show_log" ).checked ) {
+		return;
+	}
+	var ta = document.getElementById( "log" );
+	var d = new Date();
+	var dd = d.toLocaleTimeString();
+	ta.value = ta.value + "\n" + dd + ": " + t;
+	ta.scrollTop = ta.scrollHeight;
+	return dd;
+}
+function status( t ) {
+    document.getElementById( "status" ).innerHTML = "Web MIDI status: " + t;
+}
+function nybbleChar( n ) {
+	if ( n >= 10 ) {
+		return String.fromCharCode( 'A'.charCodeAt( 0 ) + n - 10 );
+	}
+	return String.fromCharCode( '0'.charCodeAt( 0 ) + n );
+}
+function makeMsgSysEx() {
+	var d = [0xF0, 0x00, 0x21, 0x27, 0x6D, 0x02]
+	var len = d.length
+	var str = ""
+	for ( var i = 0; i < len; ++i ) {
+		str += String.fromCharCode( d[i] );
+	} 
+	var text = "Hello!\nThis message\nwas sent from\nthe config tool.";
+	str += text;
+	str += String.fromCharCode( 0xF7 );
+	return str;
+}
+function dumpSysex( data, id, prefix ) {
+	if ( !document.getElementById( "show_log" ).checked ) {
+		return;
+	}
+	var len = data.length
+	var h = prefix
+	for ( var i = 0; i < len; ++i ) {
+		var b = data[ i ];
+		h += nybbleChar( b >> 4 );
+		h += nybbleChar( b & 0xf );
+		h += " ";
+		if ( ( i & 0xf ) === 0xf ) {
+			h += "\n";
+		}
+	} 
+	document.getElementById( id ).value = h;
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="small">
+At the time of writing this will work only in Google's <a href="http://www.google.com/chrome/">Chrome</a> browser. Chrome may block SysEx access if you run this from a website, in which case download the html file locally and run it from there.
+</div>
+<div class="small" id="status"></div>
+<br>
+
+<!--<button onclick="sendMsg()">Send Msg</button>-->
+<button class="big" onclick="request()">Refresh</button>
+<label for="midioutput">Send to MIDI port:</label>
+<select id="midioutput" onchange='changeOutput()' accesskey="o"></select>
+<label for="midiinput">Listen on MIDI port: </label>
+<select id="midiinput" onchange='changeInput()' accesskey="i"></select>
+<label for="sysExId">SysEx ID: </label>
+<select id="sysExId" onchange='changeSysExId()' accesskey="s">
+<script>
+for ( let i=0; i<127; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" );
+}
+</script>
+</select>
+<label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
+<br>
+<textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
+<textarea rows=5 cols=45 name="text" id="txSysex" class="log"></textarea>
+<textarea rows=5 cols=45 name="text" id="rxSysex" class="log"></textarea>
+<br>
+File: <div id='viewer_path' style='display:inline'></div>
+<br>
+<textarea rows=10 cols=140 name="text" id="viewer"></textarea>
+<br>
+Response: <div id="response" style='display:inline'></div>
+<br>
+<div id='upload' class='upload'>
+<label for="chooseFile">Choose file to upload:</label><input type="file" id="chooseFile" name="files[]" single />
+<button onclick="upload()">Upload</button>
+<progress id='uploadProgress' max="100" value="0"></progress>
+</div>
+<br>
+<button id='delete_button' onclick="deleteFiles()">Delete</button>
+<button id='rename_button' onclick="rename()">Rename</button>
+<input type='text' id='rename_text'>
+<br>
+<button onclick="up()">Up</button>
+Path: <div id='path' style='display:inline'></div>
+<div id='listing'></div>
+
+<script>
+var path = "/";
+var midi, data;
+const dntMIDIInKey = "dntMIDIInKey";
+const dntMIDIOutKey = "dntMIDIOutKey";
+const dexSysExKey = "dexSysExKey";
+const defaultDntPortName = "disting NT";
+
+var dexInPortName = defaultDntPortName;
+var dexOutPortName = defaultDntPortName;
+var sysExId;
+
+// debugging only:
+// localStorage.removeItem(dntMIDIInKey);
+// localStorage.removeItem(dntMIDIOutKey);
+// localStorage.removeItem(dexSysExKey);
+
+if(!localStorage.getItem(dntMIDIInKey)) {  // No input stored
+// alert("saving in port");
+    localStorage.setItem(dntMIDIInKey, defaultDntPortName);
+} 
+else {
+    dexInPortName = localStorage.getItem(dntMIDIInKey);
+// alert("retrieved in port name = " + dexInPortName);
+}
+
+if(!localStorage.getItem(dntMIDIOutKey)) {  // No output stored
+// alert("saving out port name");
+    localStorage.setItem(dntMIDIOutKey, defaultDntPortName);
+} 
+else {
+    dexOutPortName = localStorage.getItem(dntMIDIOutKey);
+// alert("retrieved out port name = " + dexOutPortName);
+}
+
+if(!localStorage.getItem(dexSysExKey)) {  // No system exclusive ID stored
+// alert("saving system exclusive ID);
+    localStorage.setItem(dexSysExKey, 0);
+} 
+else {
+    sysExId = localStorage.getItem(dexSysExKey);
+// alert("retrieved system exclusive ID = " + sysExId);
+}
+
+const dntLogKey = "dntShowLog";
+
+function updateLogVisibility() {
+	let vis = document.getElementById( "show_log" ).checked ? "inline" : "none";
+	let elts = document.getElementsByClassName( 'log' );
+	for ( let e of elts ) {
+    	e.style.display = vis;
+	}
+}
+
+function showLog() {
+	updateLogVisibility();
+    localStorage.setItem( dntLogKey, document.getElementById( "show_log" ).checked );
+}
+
+if ( !localStorage.getItem( dntLogKey ) ) {
+    localStorage.setItem( dntLogKey, 1 );
+}
+document.getElementById( 'show_log' ).checked = ( localStorage.getItem( dntLogKey ) != 'false' );
+updateLogVisibility();
+
+if ( navigator.requestMIDIAccess ) {
+    navigator.requestMIDIAccess ( {
+        sysex: true
+    } ).then(onMIDISuccess, onMIDIFailure);
+} else {
+    status("No MIDI support in your browser.");
+}
+function onMIDISuccess(midiAccess) {
+    midi = midiAccess;
+    let str = "";
+    let dex = -1;
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+	    str += "<option value='" + input.value.id + "'>" + input.value.name + "</option>";
+	    if ( input.value.name == dexInPortName) {
+		    dex = input.value.id;
+	    }
+    }
+    document.getElementById( "midiinput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midiinput" ).value = dex;
+    }
+
+    str = "";
+    dex = -1;
+    let outputs = midi.outputs.values();
+
+    for ( var output = outputs.next(); output && !output.done; output = outputs.next() ) {
+	    str += "<option value='" + output.value.id + "'>" + output.value.name + "</option>";
+	    if ( output.value.name == dexOutPortName) {
+		    dex = output.value.id;
+	    }
+    }
+    document.getElementById( "midioutput" ).innerHTML = str
+    if ( dex != -1 ) {
+	    document.getElementById( "midioutput" ).value = dex;
+    }
+
+	document.getElementById("sysExId").selectedIndex = sysExId;
+	changeInput();
+
+	log( "midi access granted" );
+    status("OK");
+}
+function onMIDIFailure(e) {
+	log( "midi access failure" );
+    status("No access to MIDI devices or your browser doesn't support WebMIDI API.");
+}
+function changeInput() {
+    let inputs = midi.inputs.values();
+
+    for ( var input = inputs.next(); input && !input.done; input = inputs.next() ) {
+    	input.value.onmidimessage = "";
+    }
+	var input = midi.inputs.get( document.getElementById( "midiinput" ).value );
+	input.onmidimessage = onMIDIMessage;
+
+	// Save the current port setting
+	let inputSelector = document.getElementById("midiinput"); 
+let selectedPortName = inputSelector.options[inputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIInKey, selectedPortName);
+}
+function changeOutput() {
+let outputSelector = document.getElementById("midioutput"); 
+let selectedPortName = outputSelector.options[outputSelector.selectedIndex].text;
+    localStorage.setItem(dntMIDIOutKey, selectedPortName);
+}
+
+function changeSysExId() {
+	sysExId = document.getElementById( "sysExId" ).value;
+   localStorage.setItem(dexSysExKey, sysExId);
+}
+
+const kOpListing = 1;
+const kOpDownload = 2;
+const kOpDelete = 3;
+const kOpUpload = 4;
+const kOpRename = 5;
+
+function onMIDIMessage(message) {
+    data = message.data;
+    var header = [ 240, 0, 33, 39, 0x6D, sysExId ];
+    for ( var i=0; i<6; ++i ) {
+    	if ( header[i] != data[i] ) {
+    		return;
+    	}
+    }
+	var dd = log( "received sysex (" + data.length + " bytes)" );
+	dumpSysex( data, "rxSysex", dd+"\n" );
+	if ( data[6] == 0x7A ) {
+		let code = data[7];
+		if ( code == 0 ) {
+			document.getElementById( 'response' ).innerHTML = 'OK';
+			let cmd = data[8];
+			if ( cmd == kOpListing ) {
+				processDirectoryListing( data.slice( 9, -1 ) );
+			} else if ( cmd == kOpDownload ) {
+				processFile( data.slice( 9, -1 ) );
+			} else if ( cmd == kOpDelete ) {
+				deleteNextFile();
+			} else if ( cmd == kOpUpload ) {
+				continueUpload();
+			} else if ( cmd == kOpRename ) {
+				requestListing( path );
+			}
+		} else if ( code == 1 ) {
+			let str = "";
+			for ( let i = 8; i < data.length; ++i ) {
+				let n = data[i];
+				if ( n == 0 ) {
+					break;
+				}
+				str += String.fromCharCode( n );
+			}
+			document.getElementById( 'response' ).innerHTML = 'ERROR: ' + str;
+		} else {
+			document.getElementById( 'response' ).innerHTML = 'Unknown';
+		}
+	}
+}
+
+function addCheckSumAndSend( arr )
+{
+	let sum = 0;
+	for ( let i=7; i<arr.length; ++i ) {
+		sum += arr[i];
+	}
+	sum = ( -sum ) & 0x7f;
+	arr.push( sum );
+	arr.push( 0xF7 );
+
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	let dd = log( "sent request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function request() {
+	requestListing( path );
+}
+
+function requestListing( path ) {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpListing ];
+	for ( let i = 0; i < path.length; ++i ) {
+		arr.push( path.charCodeAt( i ) );
+	}
+	addCheckSumAndSend( arr );
+	document.getElementById( 'delete_button' ).disabled = true;
+	document.getElementById( 'rename_button' ).disabled = true;
+}
+
+function sendMsg() {
+	var str = makeMsgSysEx();
+	var arr = new Uint8Array( str.length );
+	for ( var i=0; i<str.length; ++i ) {
+		arr[i] = str.charCodeAt( i );
+	}
+	var output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	var dd = log( "sent sysex (" + str.length + " bytes)" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function updatePath() {
+	document.getElementById( 'path' ).innerHTML = path;
+}
+updatePath();
+
+function appendPath( f ) {
+	if ( path[ path.length-1 ] != '/' ) {
+		path = path + '/';
+	}
+	path += f;
+	updatePath();
+	requestListing( path );
+}
+
+function up() {
+	if ( path.endsWith( '/' ) ) {
+		path = path.substring( 0, path.length-1 );
+	}
+	let i = path.lastIndexOf( '/' );
+	if ( i >= 0 ) {
+		path = path.substring( 0, i+1 );
+		updatePath();
+		requestListing( path );
+	}
+}
+
+function extractShort( data ) {
+	var v = ( data[0] << 14 ) | ( data[1] << 7 ) | ( data[2] );
+	return v;
+}
+
+var listing = [];
+
+function processDirectoryListing( data ) {
+	listing = [];
+	for ( let i = 0; i < data.length; ) {
+		let remaining = data.length - i;
+		if ( remaining < 18 ) {
+			break;
+		}
+		let attrib = data[i++];
+		let date = extractShort( data.slice( i, i+3 ) );	i += 3;
+		let time = extractShort( data.slice( i, i+3 ) );	i += 3;
+		let size = 0;
+		for ( let j=0; j<10; ++j ) {
+			size += ( data[i++] << ( ( 9 - j ) * 7 ) );
+		}
+		let str = "";
+		for ( ; i < data.length; ) {
+			let n = data[i++];
+			if ( n == 0 ) {
+				if ( str.length == 0 ) {
+					break;
+				}
+				if ( attrib & 0x10 ) {
+					str += '/';
+				}
+				listing.push( [ str, attrib, date, time, size ] );
+				break;
+			} else {
+				str += String.fromCharCode( n );
+			}
+		}
+	}
+	listing.sort();
+	let html = "<table>";
+	for ( i=0; i<listing.length; ++i ) {
+		let f = listing[i][0];
+		let attrib = listing[i][1];
+		let date = listing[i][2];
+		let time = listing[i][3];
+		let size = listing[i][4];
+		html += "<tr class='" + ( ( i & 1 ) ? "a" : "b" ) + "'>";
+		html += "<td><input type='checkbox' id='cb" + i + "' onclick='cbClicked()'";
+		if ( attrib & 0x10 ) {
+			html += "disabled></td>";
+			html += "<td><button onclick='appendPath(\"" + f + "\")'>Enter</button></td>";
+		} else {
+			html += "></td>";
+			html += "<td><button onclick='viewFile(\"" + f + "\")'>View</button></td>";
+		}
+		html += "<td>";
+		html += f;
+		html += "</td>";
+		html += "<td>";
+		if ( !( attrib & 0x10 ) ) {
+			html += size;
+		}
+		html += "</td>";
+		let year = 1980 + ( date >> 9 );
+		let month = ( ( date >> 5 ) & 0xf ) - 1;
+		let day = date & 0x1f;
+		let hour = time >> 11;
+		let minute = ( time >> 5 ) & 0x3f;
+		let second = 2 * ( time & 0x1f );
+		let d = new Date( year, month, day, hour, minute, second, 0 );
+		html += "<td>" + d.toUTCString() + "</td>";
+		html += "</tr>";
+	}
+	html += "</table>";
+	document.getElementById( 'listing' ).innerHTML = html;
+}
+
+function viewFile( f ) {
+	let n = path;
+	if ( !n.endsWith( '/' ) ) {
+		n += '/';
+	}
+	n += f;	
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpDownload ];
+	for ( let i = 0; i < n.length; ++i ) {
+		arr.push( n.charCodeAt( i ) );
+	}
+	addCheckSumAndSend( arr );
+	document.getElementById( 'viewer_path' ).innerHTML = n;
+}
+
+function processFile( data ) {
+	let str = "";
+	for ( let i = 0; i < data.length; i += 2 ) {
+		let n = ( data[i] << 4 ) + data[i+1];
+		str += String.fromCharCode( n );
+	}
+	document.getElementById( 'viewer' ).value = str;
+}
+
+var toDelete = [];
+
+function deleteNextFile() {
+	if ( toDelete.length == 0 ) {
+		requestListing( path );
+		return;
+	}
+	let n = toDelete[ toDelete.length-1 ];
+	toDelete = toDelete.slice( 0, toDelete.length-1 );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpDelete ];
+	for ( let i = 0; i < n.length; ++i ) {
+		arr.push( n.charCodeAt( i ) );
+	}
+	addCheckSumAndSend( arr );
+}
+
+function deleteFiles() {
+	let d = [];
+	for ( let i=0; i<listing.length; ++i ) {
+		if ( document.getElementById( 'cb' + i ).checked ) {
+			let n = path;
+			if ( !n.endsWith( '/' ) ) {
+				n += '/';
+			}
+			n += listing[i][0];
+			d.push( n );
+		}
+	}
+	if ( d.length ) {
+		let msg = 'Delete file(s)?';
+		for ( let i=0; i<d.length; ++i ) {
+			msg += '\n' + d[i];
+		}
+		if ( confirm( msg ) ) {
+			toDelete = d;
+			deleteNextFile();
+		}
+	}
+}
+
+function cbClicked() {
+	let checked = 0;
+	for ( let i=0; i<listing.length; ++i ) {
+		if ( document.getElementById( 'cb' + i ).checked ) {
+			checked += 1;
+			document.getElementById( 'rename_text' ).value = listing[i][0];
+		}
+	}
+	document.getElementById( 'delete_button' ).disabled = ( checked == 0 );
+	document.getElementById( 'rename_button' ).disabled = ( checked != 1 );
+}
+
+function sendRTC() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let d = Math.floor( Date.now() / 1000 );
+	let n = new Date( Date.now() );
+	d -= n.getTimezoneOffset() * 60;
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x04,
+		(d>>28)&0xf, (d>>21)&0x7f, (d>>14)&0x7f, (d>>7)&0x7f, (d>>0)&0x7f,
+		0xF7 ];
+	output.send( arr );
+	let dd = log( "sent RTC update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+var uploadData = [];
+var uploadFile = "";
+var uploadPath = "";
+var uploadPos = 0;
+
+function handleFileSelect(evt,id) {
+	let files = evt.target.files; // FileList object
+	let f = files[0];
+	uploadFile = f.name;
+
+	var reader = new FileReader();
+
+	reader.onload = (function(theFile) {
+		return function(e) {
+			let ints = new Uint8Array( e.target.result );
+			uploadData = Array.from( ints );
+		};
+	  })(f);
+  
+	reader.readAsArrayBuffer( f );
+}
+document.getElementById('chooseFile').addEventListener('change', handleFileSelect, false);
+function upload() {
+	sendRTC();
+
+	let n = path;
+	if ( !n.endsWith( '/' ) ) {
+		n += '/';
+	}
+	n += uploadFile;	
+	uploadPath = n;
+
+	uploadProgress = -1;	
+	uploadPos = 0;
+
+	continueUpload();
+}
+
+function continueUpload() {
+	let count = Math.min( 512, uploadData.length - uploadPos );
+	if ( count == 0 ) {
+		document.getElementById( 'uploadProgress' ).value = 0;
+		requestListing( path );
+		return;
+	}
+
+	document.getElementById( 'uploadProgress' ).value = ( uploadPos * 100 ) / uploadData.length;
+
+	let createAlways = ( uploadPos == 0 );
+
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpUpload ];
+	for ( let i = 0; i < uploadPath.length; ++i ) {
+		arr.push( uploadPath.charCodeAt( i ) );
+	}
+	arr.push( 0 );
+	arr.push( createAlways );
+	arr.push( 0 );// ( uploadPos >> 63 ) & 0x7f );
+	arr.push( 0 );// ( uploadPos >> 56 ) & 0x7f );
+	arr.push( 0 );// ( uploadPos >> 49 ) & 0x7f );
+	arr.push( 0 );// ( uploadPos >> 42 ) & 0x7f );
+	arr.push( 0 );// ( uploadPos >> 35 ) & 0x7f );
+	arr.push( ( uploadPos >> 28 ) & 0x0f );// ( uploadPos >> 28 ) & 0x7f );
+	arr.push( ( uploadPos >> 21 ) & 0x7f );
+	arr.push( ( uploadPos >> 14 ) & 0x7f );
+	arr.push( ( uploadPos >> 7 ) & 0x7f );
+	arr.push( ( uploadPos >> 0 ) & 0x7f );
+	arr.push( 0 );// ( count >> 63 ) & 0x7f );
+	arr.push( 0 );// ( count >> 56 ) & 0x7f );
+	arr.push( 0 );// ( count >> 49 ) & 0x7f );
+	arr.push( 0 );// ( count >> 42 ) & 0x7f );
+	arr.push( 0 );// ( count >> 35 ) & 0x7f );
+	arr.push( ( count >> 28 ) & 0x0f );// ( count >> 28 ) & 0x7f );
+	arr.push( ( count >> 21 ) & 0x7f );
+	arr.push( ( count >> 14 ) & 0x7f );
+	arr.push( ( count >> 7 ) & 0x7f );
+	arr.push( ( count >> 0 ) & 0x7f );
+	for ( let j=0; j<count; ++j ) {
+		let b = uploadData[ uploadPos + j ];
+		arr.push( ( b >> 4 ) & 0xf );
+		arr.push( ( b ) & 0xf );
+	}
+	addCheckSumAndSend( arr );
+	
+	uploadPos += count;
+}
+
+function rename() {
+	let before = "";
+	for ( let i=0; i<listing.length; ++i ) {
+		if ( document.getElementById( 'cb' + i ).checked ) {
+			before = listing[i][0];
+			break;
+		}
+	}
+	if ( before.length == 0 ) {
+		return;
+	}
+
+	let n = path;
+	if ( !n.endsWith( '/' ) ) {
+		n += '/';
+	}
+	before = n + before;
+	n += document.getElementById( 'rename_text' ).value;
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpRename ];
+	for ( let i = 0; i < before.length; ++i ) {
+		arr.push( before.charCodeAt( i ) );
+	}
+	arr.push( 0 );
+	for ( let i = 0; i < n.length; ++i ) {
+		arr.push( n.charCodeAt( i ) );
+	}
+	arr.push( 0 );
+	addCheckSumAndSend( arr );
+}
+
+</script>
+
+</body>
