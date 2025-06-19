@@ -611,8 +611,12 @@ function upload() {
 }
 
 function continueUpload() {
+	if ( uploadData.length == 0 ) {
+		return
+	}
 	let count = Math.min( 512, uploadData.length - uploadPos );
 	if ( count == 0 ) {
+		uploadData = [];
 		document.getElementById( 'uploadProgress' ).value = 0;
 		requestListing( path );
 		return;
