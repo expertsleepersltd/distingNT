@@ -22,6 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
 
+'''
+Requirements:
+pip install mido
+pip install python-rtmidi
+
+Example usage:
+python file_send.py 0 "/presets/filename.json" "filename.json"
+'''
+
 import mido
 import sys
 
