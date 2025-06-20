@@ -146,6 +146,7 @@ Response: <div id="response" style='display:inline'></div>
 <button id='delete_button' onclick="deleteFiles()">Delete</button>
 <button id='rename_button' onclick="rename()">Rename</button>
 <input type='text' id='rename_text'>
+<button id='new_folder_button' onclick="newFolder()">New Folder</button>
 <br>
 <button onclick="up()">Up</button>
 Path: <div id='path' style='display:inline'></div>
@@ -296,6 +297,7 @@ const kOpDelete = 3;
 const kOpUpload = 4;
 const kOpRename = 5;
 const kOpRemount = 6;
+const kOpNewFolder = 7;
 
 function onMIDIMessage(message) {
     data = message.data;
@@ -321,6 +323,8 @@ function onMIDIMessage(message) {
 			} else if ( cmd == kOpUpload ) {
 				continueUpload();
 			} else if ( cmd == kOpRename ) {
+				requestListing( path );
+			} else if ( cmd == kOpNewFolder ) {
 				requestListing( path );
 			}
 		} else if ( code == 1 ) {
@@ -548,6 +552,7 @@ function deleteFiles() {
 }
 
 function cbClicked() {
+	document.getElementById( 'rename_text' ).value = "";
 	let checked = 0;
 	for ( let i=0; i<listing.length; ++i ) {
 		if ( document.getElementById( 'cb' + i ).checked ) {
@@ -696,6 +701,23 @@ function remount() {
 	// for future expansion - might be able to request a partial rescan
 	let what = 0;
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpRemount, what ];
+	addCheckSumAndSend( arr );
+}
+
+function newFolder() {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpNewFolder ];
+	let folder = document.getElementById( 'rename_text' ).value;
+	if ( folder.length == 0 ) {
+		folder = 'untitled folder';
+	}
+	let n = path;
+	if ( !n.endsWith( '/' ) ) {
+		n += '/';
+	}
+	n += folder;	
+	for ( let i = 0; i < n.length; ++i ) {
+		arr.push( n.charCodeAt( i ) );
+	}
 	addCheckSumAndSend( arr );
 }
 
