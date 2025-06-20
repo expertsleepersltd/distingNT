@@ -458,12 +458,10 @@ function processDirectoryListing( data ) {
 		let time = listing[i][3];
 		let size = listing[i][4];
 		html += "<tr class='" + ( ( i & 1 ) ? "a" : "b" ) + "'>";
-		html += "<td><input type='checkbox' id='cb" + i + "' onclick='cbClicked()'";
+		html += "<td><input type='checkbox' id='cb" + i + "' onclick='cbClicked()'></td>";
 		if ( attrib & 0x10 ) {
-			html += "disabled></td>";
 			html += "<td><button onclick='appendPath(\"" + f + "\")'>Enter</button></td>";
 		} else {
-			html += "></td>";
 			html += "<td><button onclick='viewFile(\"" + f + "\")'>View</button></td>";
 		}
 		html += "<td>";
