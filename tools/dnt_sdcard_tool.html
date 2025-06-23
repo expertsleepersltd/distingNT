@@ -126,6 +126,7 @@ for ( let i=0; i<127; ++i ) {
 </select>
 <label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
 <button id='remount_button' onclick="remount()">Remount</button>
+<button id='reboot_button' onclick="reboot()">Reboot</button>
 <br>
 <textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
 <textarea rows=5 cols=45 name="text" id="txSysex" class="log"></textarea>
@@ -717,6 +718,14 @@ function newFolder() {
 		arr.push( n.charCodeAt( i ) );
 	}
 	addCheckSumAndSend( arr );
+}
+
+function reboot() {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7F, 0xF7 ];
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	let dd = log( "sent reboot request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 </script>
