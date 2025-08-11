@@ -168,7 +168,7 @@ return
 	end
 
 ,	draw = function( self )
-		local alg = getCurrentAlgorithm()
+		local alg = self.algorithmIndex
 		local p = getCurrentParameter( alg ) - self.parameterOffset
 		drawRectangle( cx, ty, cx, by, 1 )
 		drawRectangle( lx, cy, rx, cy, 1 )
@@ -192,6 +192,8 @@ return
 		drawText( 100, 40, gateState and "Open" or "Closed" )
 
 		drawText( 100, 50, lastMessage )
+
+		drawText( 100, 60, "Slot " .. alg )
 	end
 	
 }
