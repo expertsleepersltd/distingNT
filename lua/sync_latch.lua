@@ -52,7 +52,7 @@ For more information, please refer to <https://unlicense.org>
 ]] -- 
 
 -- Version
--- v1
+-- v2       -- 9 Aug 2025
 
 --------------------------------------------------------------------------------
 -- Constants
@@ -67,6 +67,8 @@ local TIME_SIG_DEN_OPT = {1, 2, 4, 8, 16}
 local AUTO_FILL_SWITCH = {"Off", "On"}
 local SLV_STATE = {"Idle", "Run"}
 local SIGNAL_EDGE = {"Falling", "Rising"}
+local RST_IN_TYPE = {"Trigger", "Run-Stop"}
+local RST_OUT_TYPE = {"at Run", "at Stop", "Both"}
 
 local EOC_DURATION_OPT = {"50% Clock", "1 ms", "2 ms", "3 ms", "4 ms", "5 ms", "6 ms", "7 ms", "10 ms"}
 local EOC_DURATION = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 10.0}
@@ -82,6 +84,8 @@ local time_sig_den = 4     -- default Time Signature Denominator, use UI to chan
 local tmsig_den_index = 3
 local eoc_dur_index = 3    -- use 2 ms pulse duration
 local mu_missed_idx = 2
+local rst_in_type_idx = 2
+local rst_out_type_idx = 1
 
 local loop_bars = 4        -- default number of bars for sync latch boundaries
 local auto_fill_before_latch = true
@@ -96,7 +100,9 @@ local slv_st_ars_index = 2
 local sgnl_edge_index = 1
 local mumclk_index = 2
 
-local makeup_missed_tick_AR = true    -- to deal with some Clk/Rst masters at Reset
+local makeup_missed_tick_AR = false   -- Set to true to deal with 
+                                      -- some Clk/Rst masters at Reset
+                                      -- but usually leave false for Run/Stop reset input
 local script_debug = false
 
 --------------------------------------------------------------------------------
@@ -107,10 +113,14 @@ local slave_run = false     -- default, can override with parameter above
 local fill_in = false      -- can set set Manually (Trig) or Auto by latch
 local end_of_bar = false
 local end_of_loop = false
+local reset_out = false   -- output sig
+local rst_at_start = true
+local rst_at_stop = true  -- only used with run_stop_type
 
 local latch_arm = false
 local latch_on_next_tick = false
 local reset_request = false
+local run_stop_type = false  -- Reset type
 
 local pulse_timer = false
 local pulse_duration = 2
@@ -127,7 +137,8 @@ local auto_fill_tick_count = PPQN_res * auto_fill_beats
 -- "Fill Gate"   [2]
 -- "End of Bar"  [3]
 -- "End of Loop" [4] 
-local out_signals = {0.0, 0.0, 0.0, 0.0}
+-- "Reset Out"   [5]
+local out_signals = {0.0, 0.0, 0.0, 0.0, 0,0}
 
 
 --------------------------------------------------------------------------------
@@ -139,30 +150,32 @@ return {
     init = function(self)
         return {
             -- Inputs: 1=Clock (Gate), 2=Reset, 3=Arm, 4=Fill
-            inputs = {kGate, kTrigger, kTrigger, kTrigger},
-            outputs = 4,
+            inputs = {kGate, kGate, kTrigger, kTrigger},
+            outputs = 5,
             inputNames = {"Clock input", "Reset input", "Arm input", "Fill input"},
-            outputNames = {"Slave Run gate", "Fill gate", "End of Bar trig", "End of Loop trig"},
+            outputNames = {"Slave Run gate", "Fill gate", "End of Bar trig", "End of Loop trig", "Reset Out"},
             parameters = {
                 {"Loop Bars", 1, 16, 4 },
                 {"Time Sig Numerator", 1, 17, 4, kNone },
                 {"Time Sig Denomenator", TIME_SIG_DEN_OPT, 3 },
-                {"Clock in PPQN", PPQN_OPTIONS, 1 },
+                {"Clock In PPQN", PPQN_OPTIONS, 1 },
                 {"Auto Fill", AUTO_FILL_SWITCH, 2 },
                 {"Auto Fill Beats", 1, 4, 2, kNone },
                 {"Slave State upon Reset", SLV_STATE, 2 },
                 {"Slave Gate on Clock", SIGNAL_EDGE, 1 },
-                {"End of Loop Pulse dur", EOC_DURATION_OPT, 4},
-                {"Makeup Reset Clock Tick", AUTO_FILL_SWITCH, 2 }
+                {"End of Loop Pulse dur", EOC_DURATION_OPT, 4 },
+                {"Makeup Reset Clock Tick", AUTO_FILL_SWITCH, 2 },
+                {"Reset Input Type", RST_IN_TYPE, 1 },
+                {"Reset Out Behavior", RST_OUT_TYPE, 1}
             }
         }
     end,
 
     ------------------------------------------------------------------------------
-    -- gate(): 1=Clock In pulses
+    -- gate(): 1=Clock In pulses, 2=Reset or Run/Stop
     ------------------------------------------------------------------------------
     gate = function(self, input, rising)
-    	-- Clock --
+        -- Clock --
         if input == 1 and rising then
 
             -- decrement clock tick counter
@@ -182,7 +195,8 @@ return {
             end_of_bar = false -- clear
             end_of_loop = false -- clear
 
-        elseif input == 1 and not rising and tick_countdown == 0 then
+        elseif input == 1 and not rising then
+          if tick_countdown == 0 then
             -- we've seen last *falling clock* tick of current bar (measure)
             -- so pulse end of bar signal, which gets cleared at next *rising clock*
             end_of_bar = true
@@ -190,7 +204,7 @@ return {
 
             -- using timed pulse mode
             if pulse_duration > 0 then
-            	pulse_timer = true
+                pulse_timer = true
             end
 
             -- decrement bar counter
@@ -219,7 +233,7 @@ return {
                 -- toggle the Latch ("Slave Run") signal
                 -- BEFORE first the rising clock of next measure
                 if not pulse_timer then
-                	-- do it now
+                    -- do it now
                     slave_run = not slave_run
                                 
                     latch_on_next_tick = false
@@ -230,22 +244,19 @@ return {
             
             -- refill bar clock tick countdown
             tick_countdown = PPQN_res * time_sig_num
+          end
         end
         
-        if bar_countdown == 1 and auto_fill_before_latch and latch_arm then
-            if tick_countdown <= auto_fill_tick_count and not fill_in then
-                fill_in = true
+        if input == 2 and rising then
+            -- Reset or RUN
+            rst_in_type_idx = self.parameters[11]
+            if RST_IN_TYPE[rst_in_type_idx] == "Trigger" then
+                  run_stop_type = false
+            else  run_stop_type = true  -- else Run/Stop"
             end
-        end
-    end,
 
-    ------------------------------------------------------------------------------
-    -- trigger(): 2=Reset, 3=Arm, 4=Fill
-    ------------------------------------------------------------------------------
-    trigger = function(self, input)
-        if input == 2 then
-            -- Reset    
-            reset_request = true  -- processed by step()
+            reset_out = rst_at_start
+            reset_request = true  -- flag processed by step()
             
             mumclk_index = self.parameters[10]
             if AUTO_FILL_SWITCH[mumclk_index] == "On" then
@@ -280,7 +291,7 @@ return {
             elapsed_time = 0.0
             last_elapsed = 0.0  -- for debug only
                         
-            latch_arm = false       
+            -- latch_arm = false       
             latch_on_next_tick = false
             end_of_bar = false
             end_of_loop = false
@@ -291,19 +302,54 @@ return {
                 auto_fill_beats = time_sig_num
             end
             auto_fill_tick_count = PPQN_res * auto_fill_beats
-            
-            slave_run = not slave_idle_at_reset
+
+            if slave_idle_at_reset and latch_arm then
+                -- easter egg - if pending Arm Latch and idle 
+                slave_run = true
+            else
+                slave_run = not slave_idle_at_reset            
+            end
+            latch_arm = false    
 
             -- refill clock tick countdown
             tick_countdown = PPQN_res * time_sig_num
             bar_countdown = loop_bars
                 
-        	-- Missed first clock tick on reset, adjust counter
+            -- Missed first clock tick on reset, adjust counter
             if makeup_missed_tick_AR then
                 tick_countdown = tick_countdown - 1
             end
-                
-        elseif input == 3 then
+
+        elseif input == 2 and not rising then
+            -- falling Run (Stop) -> Master Clock Stopped
+            if run_stop_type then
+                slave_run = false
+                fill_in = false
+                end_of_bar = false
+                end_of_loop = false
+                latch_arm = false       
+                latch_on_next_tick = false
+              
+                reset_out = rst_at_stop
+                reset_request = rst_at_stop   -- set flag            
+            end
+        end
+        
+        if input == 1 then
+          if bar_countdown == 1 and auto_fill_before_latch and latch_arm then
+            if tick_countdown <= auto_fill_tick_count and not fill_in then
+                fill_in = true
+            end
+          end
+        end
+        
+    end,
+
+    ------------------------------------------------------------------------------
+    -- trigger():  3=Arm, 4=Fill
+    ------------------------------------------------------------------------------
+    trigger = function(self, input)           
+        if input == 3 then
             -- toggle Arm request
             latch_arm = not latch_arm
 
@@ -334,6 +380,19 @@ return {
         else  slave_idle_at_reset = false
         end
 
+        rst_out_type_idx = self.parameters[12]
+        if RST_OUT_TYPE[rst_out_type_idx] == "at Run" then
+            rst_at_start = true
+            rst_at_stop = false
+        elseif RST_OUT_TYPE[rst_out_type_idx] == "at Stop" then
+            rst_at_start = false
+            rst_at_stop = run_stop_type
+        else
+           -- at Both Run & Stop
+           rst_at_start = true
+           rst_at_stop = run_stop_type
+        end
+
         eoc_dur_index  = self.parameters[9]
         pulse_duration = EOC_DURATION[eoc_dur_index] / 1000.0
 
@@ -342,13 +401,13 @@ return {
             if elapsed_time >= pulse_duration then
                 -- check each signal
                 if latch_on_next_tick then
-                	-- delayed change
+                    -- delayed change
                     slave_run = not slave_run  -- toggle now
 
                     latch_on_next_tick = false
                     latch_arm = false                
                 end
-                
+
                 if end_of_loop then
                     end_of_loop = false       -- force LOW now
                 end
@@ -356,7 +415,7 @@ return {
                 if end_of_bar then
                     end_of_bar = false        -- force LOW now
                 end
-                
+
                 last_elapsed = elapsed_time * 1000
                 elapsed_time = 0.0                
                 pulse_timer = false
@@ -366,18 +425,26 @@ return {
             end
         end
 
-        -- reset trig seen so hold Run signal LOW for a delta step time
+        -- reset trig seen or request flagged 
         if reset_request then
-            out_signals[1] = 0
-            reset_request = false
+            if not run_stop_type then
+                -- Trigger type so hold Slave Run signal LOW for a delta step time
+                out_signals[1] = 0
+            end
+            
+            out_signals[5] = reset_out and 5 or 0
+            
+            reset_request = false  -- clear flag
+            reset_out = false
         else
             out_signals[1] = slave_run and 5 or 0
+            out_signals[5] = 0
         end
 
-    	out_signals[2] = fill_in and 5 or 0
+        out_signals[2] = fill_in and 5 or 0
         out_signals[3] = end_of_bar and 5 or 0
         out_signals[4] = end_of_loop and 5 or 0
-
+        
         return out_signals
     end,
 
@@ -385,19 +452,19 @@ return {
     -- UI stuff: Encoder2 Push to Arm / Disarm Latch, Pot3 Push to initiate Fill-In
     ------------------------------------------------------------------------------
     ui = function( self )
-		return true
-	end,
-	
-	encoder2Push = function( self )
-        -- toggle Arm request
-		latch_arm = not latch_arm
-	end,
+        return true
+    end,
     
- 	pot3Push = function( self )
- 	    -- Fill signal latch
+    encoder2Push = function( self )
+        -- toggle Arm request
+        latch_arm = not latch_arm
+    end,
+    
+    pot3Push = function( self )
+        -- Fill signal latch
         fill_in = true
-	end,
-	
+    end,
+    
     ------------------------------------------------------------------------------
     -- draw(): Minimal status - Mutable Instruments style
     ------------------------------------------------------------------------------
@@ -407,12 +474,12 @@ return {
         local localTickCountup = PPQN_res * time_sig_num - tick_countdown
         local localBeat = math.floor(localTickCountup / PPQN_res) + 1
         local localTicks = localTickCountup % PPQN_res
-		local arm_L_char = " "
-		local arm_R_char = " "
-		local fill_char = ":"
-		local play_char = "."
+        local arm_L_char = " "
+        local arm_R_char = " "
+        local fill_char = ":"
+        local play_char = "."
 
-		if latch_arm then
+        if latch_arm then
             arm_L_char = "["
             arm_R_char = "]"
         else
@@ -420,14 +487,14 @@ return {
             arm_R_char = " "
         end
         if slave_run then
-        	play_char = ">"
+            play_char = ">"
         else
-        	play_char = "."
+            play_char = "."
         end
         if fill_in then
-        	fill_char = "!"
+            fill_char = "!"
         else
-    	  	fill_char = ":"
+            fill_char = ":"
         end
 
         local x = 95
@@ -444,10 +511,9 @@ return {
         drawText(x+65, y, play_char)
         
         if script_debug then
-            drawText(x + 100, y, ("PPQN = %3d"):format(PPQN_res))
-            drawText(x + 90, y-15, ("CLK = %s"):format(SIGNAL_EDGE[sgnl_edge_index]))
             drawText(x + 80, y+15, ("AF_ticks = %3d"):format(auto_fill_tick_count))
-            -- drawText(15, y+15, ("elapsed = %.2f ms of %.1f ms duration"):format(last_elapsed, pulse_duration*1000))
+            drawText(15, y+15, ("elapsed = %.2f ms of %.1f ms duration"):format(last_elapsed, pulse_duration*1000))
         end
+
     end
 }
