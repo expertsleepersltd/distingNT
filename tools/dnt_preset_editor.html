@@ -445,13 +445,24 @@ function processAlgorithmInfo( data ) {
 	factory.push( names );
 	let isPlugin = data[c++];
 	let isLoaded = data[c++];
-	factory.push( [ isPlugin, isLoaded ] );
+	let filename = "";
+	for ( let i = 0; i < 256 && c < data.length; ++i ) {
+		let n = data[c++];
+		if ( n == 0 || n == 0xf7 ) {
+			break;
+		}
+		filename += String.fromCharCode( n );
+	}
+	factory.push( [ isPlugin, isLoaded, filename ] );
 	if ( index == 0 ) {
 		factories = [];
 	}
 	factories.push( factory );
 	let m = document.getElementById( 'algorithms_menu' );
 	m.options[ index ].text = names[0];
+	if ( filename.length > 0 ) {
+		m.options[ index ].text += " - " + filename;
+	}
 
 	if ( index == numAlgorithms-1 ) {
 		changeAlgorithm();
