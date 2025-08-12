@@ -141,7 +141,7 @@ return
 	end
 	
 ,	pot2Turn = function( self, x )
-		local alg = getCurrentAlgorithm()
+		local alg = self.algorithmIndex
 		local p = self.parameterOffset + 1 + x * 3.5
 		focusParameter( alg, p )
 	end
@@ -157,10 +157,10 @@ return
 		bing = 0.5
 	end
 , 	pot3Push = function( self )
-		bing = 0.5
+		setDisplayMode( "overview" )
 	end
 , 	encoder2Push = function( self )
-		bing = 0.5
+		setDisplayMode( "meters" )
 	end
 	
 ,	ui = function( self )
