@@ -234,6 +234,8 @@ Module display mode:
 <input id='show_mapping_midi' type='checkbox' accesskey="m" onchange="toggleMappings('midi')">
 <label for="show_mapping_i2c">Show I2C mappings:</label>
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
+<label for="show_mapping_perf">Show perf page:</label>
+<input id='show_mapping_perf' type='checkbox' onchange="toggleMappings('perf')">
 <label for="show_pages">Show as:</label>
 <select id="show_pages" onchange='changePages()'><option value='false'>Flat list</option><option value='true'>Pages</option></select>
 <br>
@@ -720,7 +722,7 @@ function toggleMappings( n ) {
 }
 
 var mappingRefreshed = false;
-var mappingTypes = [ "cv", "midi", "i2c" ];
+var mappingTypes = [ "cv", "midi", "i2c", "perf" ];
 
 function anyMappingVisible() {
 	for ( let n of mappingTypes ) {
@@ -792,13 +794,13 @@ function processEnumStrings( data ) {
 	}
 }
 
-var mappingVersion = 4;
+var mappingVersion = 5;
 
 function processMapping( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let c = 3;
 	let version = data[c]; c++;
-	if ( version < 1 || version > 4 ) {
+	if ( version < 1 || version > 5 ) {
 		alert( "Unknown mapping data version" );
 		return;
 	}
@@ -858,6 +860,13 @@ function processMapping( data ) {
 		document.getElementById( "p" + p + "_i2c_min" ).value = min;
 		document.getElementById( "p" + p + "_i2c_max" ).value = max;
 	}
+	{
+		let perfPage = 0;
+		if ( version >= 5 ) {
+			perfPage = data[c]; c++;
+		}
+		document.getElementById( "p" + p + "_perf_index" ).value = perfPage;
+	}
 	mappingRefreshed = true;
 }
 
@@ -916,11 +925,12 @@ function processNumParameters( data ) {
 function parameterTableHeader() {
 	let str = "";
 	str += "<thead>";
-	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
+	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th><th class='map_perf'>Perf Page</th></tr>";
 	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
 	str += "<th class='map_cv'>Source</th><th class='map_cv'>Bus</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
 	str += "<th class='map_midi'>Channel</th><th class='map_midi'>Type</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
+	str += "<th class='map_perf'>Index</th>";
 	str += "</tr>";
 	str += "</thead>";
 	return str;
@@ -992,6 +1002,8 @@ function tableRowForParameter( i ) {
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
+
+			str += "<td class='map_perf'><input id=p" + i + "_perf_index type='number' class='param_v' size=3 min='0' max='15' onchange='mapping_perf_index(" + i + ")'></td>";
 
 	return str;
 }
@@ -1411,7 +1423,7 @@ function mapping_i2c( p ) {
 	}
 	arr.push( flags, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f, 0xF7 );
 	output.send( arr );
-	let dd = log( "sent midi mapping update to disting NT" );
+	let dd = log( "sent i2c mapping update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
@@ -1429,6 +1441,21 @@ function mapping_i2c_min( p ) {
 }
 function mapping_i2c_max( p ) {
 	mapping_i2c( p );
+}
+
+function mapping_perf( p ) {
+	let index = document.getElementById( "p" + p + "_perf_index" ).value;
+
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x54, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion, index, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent perf page update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function mapping_perf_index( p ) {
+	mapping_perf( p );
 }
 </script>
 
