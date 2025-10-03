@@ -836,7 +836,7 @@ function processMapping( data ) {
 		if ( flags & 4 ) {
 			cc = 128;
 		}
-		let type = ( flags2 & 4 ) ? ( ( flags2 & 2 ) ? 2 : 1 ) : 0;
+		let type = flags2 >> 2;
 		document.getElementById( "p" + p + "_midi_ch" ).value = ( flags >> 3 ) & 0xf;
 		document.getElementById( "p" + p + "_midi_type" ).value = type;
 		document.getElementById( "p" + p + "_midi_cc" ).value = cc;
@@ -984,7 +984,7 @@ function tableRowForParameter( i ) {
 			}
 			str += "</select></td>";
 			str += "<td class='map_midi'><select id=p" + i + "_midi_type class='param_v' onchange='mapping_midi_type(" + i + ")'>";
-			str += "<option value=0>CC</option><option value=1>Note - momentary</option><option value=2>Note - toggle</option>";
+			str += "<option value=0>CC</option><option value=1>Note - momentary</option><option value=2>Note - toggle</option><option value=3>14 bit CC - low</option><option value=4>14 bit CC - high</option>";
 			str += "</select></td>";
 			str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
 			for ( let j=0; j<128; ++j ) {
@@ -1359,9 +1359,7 @@ function mapping_midi( p ) {
 	let sym = document.getElementById( "p" + p + "_midi_sym" ).checked;
 	let rel = document.getElementById( "p" + p + "_midi_rel" ).checked;
 	let flags = en | ( sym << 1 ) | ( ( ch & 0xf ) << 3 );
-	let toggle = ( type == 2 );
-	let mtype = ( type != 0 );
-	let flags2 = rel | ( toggle << 1 ) | ( mtype << 2 );
+	let flags2 = rel | ( 0 << 1 ) | ( type << 2 );
 	let min = document.getElementById( "p" + p + "_midi_min" ).value;
 	let max = document.getElementById( "p" + p + "_midi_max" ).value;
 
