@@ -79,19 +79,52 @@ absolute_path=$(realpath "$0")
 script_dir_absolute=$(dirname "$absolute_path")
 export "SPT_INSTALL_BIN=$script_dir_absolute"
 
-# Sets other location variables used in this script 
-flashdir="$HOME/distingNT"
-venvdir="$HOME/venv"
+# Sets other location variables used in this script
+flashdir="$script_dir_absolute"
+venvdir="$script_dir_absolute/.venv"
+envfile="$script_dir_absolute/.env"
+
+# Load settings from .env file if it exists
+if [ -f "$envfile" ]; then
+  source "$envfile"
+  echo ""; echo "Loaded settings from .env file"; echo ""
+fi
+
+# Initialize Python virtual environment if it doesn't exist
+if ! [ -d "$venvdir" ]; then
+  echo ""; echo "Python virtual environment not found. Initializing..."; echo ""
+  python3 -m venv "$venvdir"
+  if [ $? -ne 0 ]; then
+    echo "- FAIL: Could not create virtual environment"; echo ""
+    echo "Make sure Python 3 is installed. You may need to install Xcode Command Line Tools:"; echo ""
+    echo "  xcode-select --install"; echo ""
+    exit 1
+  fi
+  # Activate the venv and install SPSDK
+  source "$venvdir/bin/activate"
+  echo "- OK: Virtual environment created"
+  echo "- Installing pip updates and SPSDK (this may take a few minutes)..."; echo ""
+  python -m pip install --upgrade pip
+  pip install spsdk
+  pip install setuptools --upgrade
+  if [ $? -ne 0 ]; then
+    echo ""; echo "- FAIL: Could not install SPSDK"; echo ""
+    deactivate
+    exit 1
+  fi
+  echo ""; echo "- OK: SPSDK installed successfully"
+  deactivate
+fi
 
 echo ""; echo "Welcome to NT Firmware Update Helper!"; echo ""
 
 echo "Before proceeding, make sure Disting NT is in bootloader mode:"
 echo "  Menu > Misc > Enter bootloader mode..."; echo ""
 
-echo "This script expects the following folder locations, but you can change them:"; echo ""
+echo "This script will use the following folder locations (you can change them):"; echo ""
 
-echo "  Firmware extracted here:  $flashdir"
-echo "     SPSDK installed here:  $venvdir"; echo ""
+echo "  Firmware folder:  $flashdir"
+echo "  Python venv:      $venvdir"; echo ""
 
 ##### Start user input
 while true; do
@@ -104,43 +137,53 @@ while true; do
     echo "  Hint: You can also drag the requested folder to this window to autofill the location."; echo ""
 
     # If necessary, revise the flashdir location variable
-    read -p "Extracted firmware location (ENTER to accept default): " input
+    read -p "Firmware folder location (ENTER to accept default): " input
     if [ -z "$input" ]; then
-    echo ""; echo "- OK: flashdir location: $flashdir"; echo ""
+      echo ""; echo "- OK: flashdir location: $flashdir"; echo ""
     else
+      # Expand tilde if present
       if echo "$input" | grep -q "~"; then
-        flashdir="$input"
-        flashdir="${flashdir/#\~/$HOME}" # expand tilde
-        echo ""; echo "- OK: flashdir location: $flashdir"; echo ""
+        flashdir="${input/#\~/$HOME}"
       else
         flashdir="$input"
-        if ! [ -d "$flashdir" ]; then
-          echo ""; echo "- FAIL: $flashdir doesn't exist"; echo ""
-          exit 1
-        else
-        echo ""; echo "- OK: flashdir location: $flashdir"; echo ""
-        fi
       fi
+      # Convert to absolute path if relative
+      if [[ "$flashdir" != /* ]]; then
+        flashdir="$(cd "$flashdir" 2>/dev/null && pwd)" || {
+          echo ""; echo "- FAIL: $flashdir doesn't exist or is not accessible"; echo ""
+          exit 1
+        }
+      fi
+      if ! [ -d "$flashdir" ]; then
+        echo ""; echo "- FAIL: $flashdir doesn't exist"; echo ""
+        exit 1
+      fi
+      echo ""; echo "- OK: flashdir location: $flashdir"; echo ""
     fi
 
     # If necessary, revise the venvdir location variable
     read -p "venv location (ENTER to accept default): " input
     if [ -z "$input" ]; then
-    echo ""; echo "- OK: venvdir location: $venvdir"; echo ""
+      echo ""; echo "- OK: venvdir location: $venvdir"; echo ""
     else
+      # Expand tilde if present
       if echo "$input" | grep -q "~"; then
-        venvdir="$input"
-        venvdir="${venvdir/#\~/$HOME}" # expand tilde
-        echo ""; echo "- OK: venvdir location: $venvdir"; echo ""
+        venvdir="${input/#\~/$HOME}"
       else
         venvdir="$input"
-        if ! [ -d "$venvdir" ]; then
-          echo ""; echo "- FAIL: $venvdir doesn't exist"; echo ""
-          exit 1
-        else
-        echo ""; echo "- OK: venvdir location: $venvdir"; echo ""
-        fi
       fi
+      # Convert to absolute path if relative
+      if [[ "$venvdir" != /* ]]; then
+        venvdir="$(cd "$venvdir" 2>/dev/null && pwd)" || {
+          echo ""; echo "- FAIL: $venvdir doesn't exist or is not accessible"; echo ""
+          exit 1
+        }
+      fi
+      if ! [ -d "$venvdir" ]; then
+        echo ""; echo "- FAIL: $venvdir doesn't exist"; echo ""
+        exit 1
+      fi
+      echo ""; echo "- OK: venvdir location: $venvdir"; echo ""
     fi
 
   break;;
@@ -148,6 +191,11 @@ while true; do
   esac
 done
 ##### End user input
+
+# Save settings to .env file for future use
+echo "flashdir=\"$flashdir\"" > "$envfile"
+echo "venvdir=\"$venvdir\"" >> "$envfile"
+echo "- OK: Settings saved to .env file"
 
 # Make sure venvdir and flashdir exist
 if ! [ -d "$venvdir" ]; then
