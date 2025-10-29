@@ -2,73 +2,46 @@
 
 ####################################################################################################################
 #
-#  NT Firmware Update Helper (for Mac OS) - v1.1 (20250422)
-#  created by ty hodson
+#  NT Firmware Update Helper (for MacOS) - v1.2 (20251029)
+#  created by ty hodson, improved by Neal Sanche
 #
-#  This script is intended to assist with updating the Disting NT firmware using the script method, as mentioned 
-#  in the Disting NT user manual. For someone already familiar with using *nix and the command line, a helper script 
-#  like this is probably unnecessary. But others may find it difficult to parse the steps and especially the 
-#  pre-requisites that need to be in place, and so this helper script is offered to assist.
+#  This script automates the Disting NT firmware update process using the script method mentioned in the Disting NT 
+#  user manual. For someone already familiar with using *nix and the command line, a helper script like this is 
+#  probably unnecessary. But others may find it difficult to parse the steps and especially the pre-requisites that 
+#  need to be in place, and so this helper script is offered to assist.
 #
-#  -----------------------------------------------------------------------------------------------------------------
+#  What follows is an explanation of what this script does:
 #
-#  Please read the following before deciding if this is for you.
+#  Currently the Disting NT firmware update process relies on SPSDK (Secure Provisioning Software Development Kit), 
+#  which is a Python SDK library that includes tools needed for your computer to connect to the Disting NT via USB. 
+#  SPSDK has its own pre-requisites -- namely Python 3.9+ (which is included in later versions of MacOS) and Xcode 
+#  Command Line Tools (which is not).
 #
-#  This script relies on the following pre-requisites:
+#  As an aside, this script was written specifically for MacOS, but has been confirmed to work on (Debian) Linux.
 #
-#  1.  SPSDK (Secure Provisioning Software Development Kit) -- This is a Python SDK library that includes the tools 
-#      needed for your computer to connect to the Disting NT via USB. SPSDK has its own pre-requisites -- namely 
-#      Python 3.9+ -- which can be satisfied by installing Xcode Command Line Tools (more on that in a moment).
-#      There's a lot of information at the following link, but the only thing you really need to know is how to 
-#      install SPSDK on Mac OS:
-#      https://spsdk.readthedocs.io/en/latest/examples/_knowledge_base/installation_guide.html#macos
+#  This script initializes a Python3 virtual environment (venv) in the same directory where this script is executed. 
+#  On MacOS, this action requires Xcode Command Line Tools, and if it's not already installed, the script will exit 
+#  and you'll be provided a command you can run to install it. MacOS itself may also pop up a window prompting you 
+#  to install it.
 #
-#      But before you do that, recall that the Disting NT user manual says that on Mac OS you may also need to 
-#      install Xcode, which is a set of developer tools from the Apple Developer Network. I don't have the full 
-#      Xcode package on my Mac, but I do have a subset of Xcode called Command Line Tools, which includes the 
-#      components required by SPSDK to update Disting NT's firmware. To see if you have Command Line Tools installed, 
-#      type:
+#  Once the Xcode tools are installed, run this script again. A hidden venv folder and settings file will be created 
+#  in the same directory where you ran the script, and then SPSDK will be installed into the venv (this virtual 
+#  environment keeps the firmware updater tools separate from the rest of your system). It may take a few minutes to 
+#  complete, but it only has to be done once.
 #
-#      xcode-select -p
+#  You'll then be greeted by the firmware update process, which prompts you to ensure that the Disting NT is in its 
+#  bootloader mode. It also displays the folder locations where the venv and the downloaded and unzipped firmware 
+#  are located. The most streamlined process is to unzip the firmware to the 'distingNT/flash' directory where you 
+#  ran this script.
 #
-#      If you get a response with a path to 'CommandLineTools', you're probably set. Otherwise, you can install it 
-#      with this command:
+#  You're given the opportunity to accept or change the locations if needed. In the latter case, when you're 
+#  prompted to provide those locations, you can drag the folder from Finder to the script window and the location 
+#  will be auto-filled.
 #
-#      xcode-select --install
-#
-#      If that makes you uneasy, more information about what to expect when you run that command can be found here:
-#      https://mac.install.guide/commandlinetools/4
-#
-#      After you have Command Line Tools installed, if you wanted to take my word for it (which you shouldn't), you 
-#      could just open a Terminal window and type the following commands to install SPSDK (note that these commands 
-#      are derived from the installation steps at the SPSDK link above):
-#
-#        cd ~
-#        python3 -m venv venv
-#        source venv/bin/activate
-#        python -m pip install --upgrade pip
-#        pip install spsdk
-#        pip install setuptools --upgrade
-#        deactivate
-#
-#      This block of commands creates and activates a Python virtual environment in a folder called 'venv' in your 
-#      user directory. It then performs some actions within the venv to avoid creating conflicts with the operating 
-#      system's base Python environment. These actions include updating the Python package installer, installing 
-#      SPSDK and updating the setuptools package. Finally it deactivates the venv. This virtual environment still 
-#      exists and can be activated the next time you need it. You may very well never interact with it again, but 
-#      this helper script will.
-#
-#      The concept of a Python venv is explained more here:
-#      https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
-#
-#  2.  Disting NT firmware (package version):
-#      https://expert-sleepers.co.uk/distingNTfirmwareupdates.html
-#
-#      This is downloaded as a compressed archive (zip), and it needs to be unzipped somewhere on your computer. It 
-#      doesn't really matter where, but your home directory might be a good place. When you unzip it, it will create 
-#      a folder called 'distingNT_<version>'. This helper script will need to know where to find this folder, and 
-#      you'll be prompted to confirm its location. If you have multiple firmware versions stashed there, this script
-#      will generate a list for you to choose which one to install.
+#  If multiple firmwares are found they'll be displayed with a number, at which point you can enter the number for 
+#  the version you want to install. The rest of the update process is automatic and should take around 20 seconds. 
+#  After a successful update, the script will exit with the message "All Done!" and your Disting NT will reboot.
+#  To verify the update was successful, press the upper left button and navigate to Menu / Misc / About.
 #
 ####################################################################################################################
 
