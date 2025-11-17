@@ -925,8 +925,8 @@ function processNumParameters( data ) {
 function parameterTableHeader() {
 	let str = "";
 	str += "<thead>";
-	str += "<tr><th colspan=8>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th><th class='map_perf'>Perf Page</th></tr>";
-	str += "<tr><th></th><th>Name</th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
+	str += "<tr><th colspan=10>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th><th class='map_perf'>Perf Page</th></tr>";
+	str += "<tr><th></th><th></th><th>Name</th><th></th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
 	str += "<th class='map_cv'>Source</th><th class='map_cv'>Bus</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
 	str += "<th class='map_midi'>Channel</th><th class='map_midi'>Type</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
@@ -939,7 +939,9 @@ function parameterTableHeader() {
 function tableRowForParameter( i ) {
 	str = "";
 		str += "<td>" + (i+1) + "</td>";
+		str += "<td id=p" + i + "_in>" + "</td>";
 		str += "<td id=p" + i + "_name><h1>" + "</h1></td>";
+		str += "<td id=p" + i + "_out>" + "</td>";
 		str += "<td id=p" + i + "_min>" + "</td>";
 		str += "<td id=p" + i + "_max>" + "</td>";
 		var focus = " onfocus='param_focus(" + i + ")' ";
@@ -1059,8 +1061,12 @@ function processParameterInfo( data ) {
 		name += String.fromCharCode( n );
 	}
 	let scaling = 1;
-	if ( 13+i < data.length )
-		scaling = 10 ** data[13+i];
+	let ioFlags = 0;
+	if ( 13+i < data.length ) {
+		let v = data[13+i];
+		scaling = 10 ** ( v & 3 );
+		ioFlags = ( v >> 2 ) & 7;
+	}
 	if ( name.length == 0 ) {
 		document.getElementById( "row" + p ).style='display:none;';
 	}
@@ -1068,6 +1074,12 @@ function processParameterInfo( data ) {
 	document.getElementById( "p" + p + "_max" ).innerHTML = Number(max) / scaling;
 	document.getElementById( "p" + p + "_def" ).innerHTML = Number(def) / scaling;
 	document.getElementById( "p" + p + "_scl" ).innerHTML = scaling;
+	if ( ioFlags & 1 ) {
+		document.getElementById( "p" + p + "_in" ).innerHTML = ( ioFlags & 4 ) ? "&Rightarrow;" : "&rightarrow;";
+	}
+	if ( ioFlags & 2 ) {
+		document.getElementById( "p" + p + "_out" ).innerHTML = ( ioFlags & 4 ) ? "&Rightarrow;" : "&rightarrow;";
+	}
 	var unitStr = "";
 	if ( unit < 1 && min == 0 && max == 1 ) {
 		var e = document.getElementById( "p" + p + "_c" );
@@ -1158,7 +1170,7 @@ function processParameterPages( data ) {
 			}
 			name += String.fromCharCode( n );
 		}
-		str += "<tr><th colspan=2>" + name + "</th></tr>";
+		str += "<tr><th colspan=4>" + name + "</th></tr>";
 		let nump = data[c++];
 		for ( let i=0; i<nump; ++i ) {
 			let pp = ( data[c] << 7 ) | data[c+1];
