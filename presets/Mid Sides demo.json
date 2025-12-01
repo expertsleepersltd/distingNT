@@ -1,0 +1,165 @@
+{
+"kind": "disting NT preset",
+ "author": "Anonymous            ",
+ "saved-from": ["v1.12.0beta","Dec  1 2025 09:49:46"]
+ ,
+ "engine": {
+ "sampleRate": 48000,
+  "blockSize": 24}
+ ,
+ "name": "Mid Sides demo      ",
+ "version": 2,
+ "slots": [{
+  "guid": "note",
+   "specs": [0,0,0]
+   ,
+   "lines": [" Mid/Sides processing demo"," Inputs on 1/2"," Outputs on 1/2"," Mid/Sides on 3/4"," "," "," "]
+   ,
+   "name": "README                 ",
+   "parameters": [0,0,0,0,0,0,0,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "attn",
+   "specs": [2,0,0]
+   ,
+   "name": "M/S encoder 1          ",
+   "parameters": [[0]
+    ,[1,1,500,0,0,0,0,15,1]
+    ,[2,1,500,0,0,0,0,16,1]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "attn",
+   "specs": [2,0,0]
+   ,
+   "name": "M/S encoder 2          ",
+   "parameters": [[0]
+    ,[2,1,500,0,0,0,0,15,0]
+    ,[1,1,-500,0,0,0,0,16,0]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "eqpa",
+   "specs": [2,4,0]
+   ,
+   "name": "EQ Parametric          ",
+   "parameters": [[0]
+    ,[[[15,1,0,1]
+      ,[1,6,5880,48,83]
+      ,[1,6,8192,48,0]
+      ,[1,6,8192,48,0]
+      ,[1,6,8192,48,0]
+      ]
+     ,[[16,1,0,1]
+      ,[1,6,10482,48,72]
+      ,[1,6,8192,48,0]
+      ,[1,6,8192,48,0]
+      ,[1,6,8192,48,0]
+      ]
+     ]
+    ]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "satu",
+   "specs": [2,0,0]
+   ,
+   "name": "Saturation             ",
+   "parameters": [[0,0,2,0]
+    ,[15,0,1]
+    ,[16,1,1]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "mix2",
+   "specs": [2,0,0]
+   ,
+   "channelNames": ["MID","SIDES"]
+   ,
+   "name": "Mixer Stereo           ",
+   "parameters": [[0,15,16,-15,1]
+    ,[]
+    ,[[[15,0,0,-100,0,0,0]
+      ]
+     ,[[16,0,0,100,0,0,0]
+      ]
+     ]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [3,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "attn",
+   "specs": [2,0,0]
+   ,
+   "name": "M/S decoder 1          ",
+   "parameters": [[0]
+    ,[15,1,1000,0,0,0,0,13,1]
+    ,[16,1,1000,0,0,0,0,14,1]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "attn",
+   "specs": [2,0,0]
+   ,
+   "name": "M/S decoder 2          ",
+   "parameters": [[0]
+    ,[16,1,-1000,0,0,0,0,13,0]
+    ,[15,1,1000,0,0,0,0,14,0]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ]
+ ,
+ "ui": {
+ "currentSlot": 0,
+  "displayMode": "overview",
+  "perfPage": {
+  "display": "params",
+   "item": 0}
+  }
+ }
