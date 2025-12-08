@@ -125,8 +125,11 @@ for ( let i=0; i<127; ++i ) {
 </script>
 </select>
 <label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
+<br>
+<br>
 <button id='remount_button' onclick="remount()">Remount</button>
 <button id='reboot_button' onclick="reboot()">Reboot</button>
+<button id='rescan_button' onclick="rescan()">Rescan plug-ins</button>
 <br>
 <textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
 <textarea rows=5 cols=45 name="text" id="txSysex" class="log"></textarea>
@@ -299,6 +302,7 @@ const kOpUpload = 4;
 const kOpRename = 5;
 const kOpRemount = 6;
 const kOpNewFolder = 7;
+const kOpRescan = 8;
 
 function onMIDIMessage(message) {
     data = message.data;
@@ -700,6 +704,11 @@ function remount() {
 	// for future expansion - might be able to request a partial rescan
 	let what = 0;
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpRemount, what ];
+	addCheckSumAndSend( arr );
+}
+
+function rescan() {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, kOpRescan ];
 	addCheckSumAndSend( arr );
 }
 
