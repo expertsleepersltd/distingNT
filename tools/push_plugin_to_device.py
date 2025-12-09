@@ -25,6 +25,8 @@ SOFTWARE.
 
 '''
 Requirements:
+Disting NT Firmware v1.13 or later (SYSEX command to rescan plug-ins added in v1.13)
+
 pip install mido
 pip install python-rtmidi
 
@@ -76,6 +78,7 @@ def newPreset( ):
     outPort.send(outMsg)
 
 
+# this method lifted mostly verbatim from file_send.py
 def uploadFile( local_file, nt_path ):
     kOpUpload = 4
     ack = mido.Message.from_bytes( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7A, 0, kOpUpload, 0xF7 ] )
@@ -157,17 +160,21 @@ def loadPreset( nt_path ):
 
 # remember which preset is loaded
 currentPreset = getCurrentPresetName().strip()
-# TODO: fix thid path hardcode if os can provide a way to get the current presets path
+# TODO: fix this path hardcode if os can provide a way to get the current presets path
 currentPreset = "/presets/" + currentPreset + ".json"
 
 # create a blank preset to allow plugins to reload
 newPreset()
 
 # upload the new plugin
-uploadFile ( local_plugin_path, nt_plugin_path )
+fileCopied = uploadFile ( local_plugin_path, nt_plugin_path )
+if fileCopied:
+    # scan plugins to make the new one available
+    rescanPlugins()
 
-# scan plugins to make the new one available
-rescanPlugins()
+    # reload previous preset
+    loadPreset( currentPreset )
 
-# reload previous preset
-loadPreset( currentPreset )
+    print( "Success!" )
+else:
+    print( "Error uploading plug-in file!" )
