@@ -61,8 +61,8 @@ def addCheckSum( arr ):
 	arr.append( sum )
 
 
-def getCurrentPresetName( ):
-    arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x41, 0xF7 ]
+def getCurrentPresetPath( ):
+    arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x56, 0xF7 ]
     outMsg = mido.Message.from_bytes( arr )
     outPort.send( outMsg )
 
@@ -159,9 +159,7 @@ def loadPreset( nt_path ):
 
 
 # remember which preset is loaded
-currentPreset = getCurrentPresetName().strip()
-# TODO: fix this path hardcode if os can provide a way to get the current presets path
-currentPreset = "/presets/" + currentPreset + ".json"
+currentPreset = getCurrentPresetPath().strip()
 
 # create a blank preset to allow plugins to reload
 newPreset()
@@ -172,8 +170,9 @@ if fileCopied:
     # scan plugins to make the new one available
     rescanPlugins()
 
-    # reload previous preset
-    loadPreset( currentPreset )
+    # reload previous preset, if there was one
+    if currentPreset != "":
+        loadPreset( currentPreset )
 
     print( "Success!" )
 else:
