@@ -30,17 +30,29 @@ Disting NT Firmware v1.13 or later (SYSEX command to rescan plug-ins added in v1
 pip install mido
 pip install python-rtmidi
 
-Example usage:
+Example usages:
+
 python push_plugin_to_device 0 "/local/plugin/path/plugin.o"
+  This will upload the plug-in and reload the current preset.  Any unsaved changes are lost.
+
+python push_plugin_to_device 0 "/local/plugin/path/plugin.o" "devpreset"
+  This will save your current state to a preset named "devpreset", upload the plug-in
+  and then reload the preset "devpreset" after uploading.
 '''
 
 
 import mido
 import sys
 from pathlib import PurePath
+import time
 
 sysExId = int(sys.argv[1])
 local_plugin_path = sys.argv[2]
+
+tempPresetName = None
+if len(sys.argv) > 3:
+    tempPresetName = sys.argv[3]
+
 
 nt_plugin_path = "/programs/plug-ins/" + PurePath(local_plugin_path).name
 
@@ -76,6 +88,26 @@ def newPreset( ):
     arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x35, 0xF7 ]
     outMsg = mido.Message.from_bytes( arr )
     outPort.send(outMsg)
+
+
+def setPresetName( name ):
+    arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x47 ]
+    for i in range( len(name) ):
+        arr.append( ord( name[ i ] ) )
+    arr.append( 0 )
+    arr.append( 0xF7 )
+    outMsg = mido.Message.from_bytes( arr )
+    outPort.send(outMsg)
+
+
+def savePreset( ):
+    arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x36, 0x02, 0xF7 ]
+    outMsg = mido.Message.from_bytes( arr )
+    outPort.send(outMsg)
+    # give the NT time to save the preset, as there is no ACK for this command
+    # without this delay, getCurrentPresetPath will return the old preset name immediately after savePreset
+    # if/when os decides to implement responses for preset save, this can be revisited, but for now a short sleep seems to work fine
+    time.sleep( 0.5 )
 
 
 # this method lifted mostly verbatim from file_send.py
@@ -157,6 +189,11 @@ def loadPreset( nt_path ):
     outMsg = mido.Message.from_bytes( arr )
     outPort.send(outMsg)
 
+
+# if a temp preset name was provided, first save current state to that preset
+if (tempPresetName != None):
+    setPresetName( tempPresetName )
+    savePreset( )
 
 # remember which preset is loaded
 currentPreset = getCurrentPresetPath().strip()
