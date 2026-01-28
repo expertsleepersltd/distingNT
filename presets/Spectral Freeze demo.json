@@ -1,0 +1,326 @@
+{
+"kind": "disting NT preset",
+ "author": "Anonymous            ",
+ "saved-from": ["v1.14.0beta","Jan 27 2026 17:29:27"]
+ ,
+ "engine": {
+ "sampleRate": 48000,
+  "blockSize": 24}
+ ,
+ "name": "Spectral Freeze demo",
+ "version": 2,
+ "slots": [{
+  "guid": "note",
+   "specs": [0,0,0]
+   ,
+   "lines": ["Provide audio input on input 1.","","Set the Clock to run.","","Adjust the mix in the Mixer."," "," "]
+   ,
+   "name": "Read Me                ",
+   "parameters": [0,0,0,0,0,0,0,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "clck",
+   "specs": [2,0,0]
+   ,
+   "name": "Clock                  ",
+   "parameters": [[0,0,1200,{
+     "v": 0,
+      "perfPage": {
+      "index": 1}
+      }
+     ,4,2,1,2,0,0,0,0]
+    ,[1,28,1,0,9,0,50,1,0,10,0,1]
+    ,[1,27,1,2,9,0,50,1,0,100,0,1]
+    ]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "eucp",
+   "specs": [6,0,0]
+   ,
+   "name": "Euclidean Patterns 1   ",
+   "parameters": [[0,28,27,0,4,0,0,0,0,0]
+    ,[21,1,1,9,8,1,0,1,10,100,0,1,0,0]
+    ,[22,1,1,18,17,1,0,1,10,100,0,1,0,0]
+    ,[23,1,1,11,10,1,0,1,10,100,0,1,0,0]
+    ,[24,1,1,27,26,1,0,1,10,100,0,1,0,0]
+    ,[25,1,1,15,14,1,0,1,10,100,0,1,0,0]
+    ,[26,1,1,20,19,1,0,1,10,100,0,1,0,0]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [1,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "spfz",
+   "specs": [6,128,10]
+   ,
+   "name": "Spectral Freeze 1      ",
+   "parameters": [0,1,0,0,0,{
+    "v": 0,
+     "cv": {
+     "input": 27,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,667,78,0,0,0,10,73,-12,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 21,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 22,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 23,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 24,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 25,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0,{
+    "v": 0,
+     "cv": {
+     "slot": 4,
+      "input": 26,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,13,0]
+   ,
+   "ui": {
+   "page": 8,
+    "items": [1,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "eucp",
+   "specs": [6,0,0]
+   ,
+   "name": "Euclidean Patterns 2   ",
+   "parameters": [[0,28,27,0,4,0,0,0,0,0]
+    ,[21,1,1,8,7,1,0,1,10,100,0,1,0,0]
+    ,[22,1,1,17,16,1,0,1,10,100,0,1,0,0]
+    ,[23,1,1,15,14,1,0,1,10,100,0,1,0,0]
+    ,[24,1,1,23,22,1,0,1,10,100,0,1,0,0]
+    ,[25,1,1,14,13,1,0,1,10,100,0,1,0,0]
+    ,[26,1,1,20,19,1,0,1,10,100,0,1,0,0]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [1,1,4,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "spfz",
+   "specs": [6,128,10]
+   ,
+   "name": "Spectral Freeze 2      ",
+   "parameters": [0,1,0,0,0,{
+    "v": 0,
+     "cv": {
+     "input": 27,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,761,117,0,0,0,19,127,0,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 21,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,14,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 22,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,3,14,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 23,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,-3,14,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 24,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,5,14,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 25,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,-5,14,0,{
+    "v": 0,
+     "cv": {
+     "slot": 6,
+      "input": 26,
+      "unipolar": 1,
+      "isGate": 1,
+      "volts": 5,
+      "delta": 1}
+     }
+    ,0,0,14,0]
+   ,
+   "ui": {
+   "page": 8,
+    "items": [1,1,3,3,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "mix2",
+   "specs": [3,0,0]
+   ,
+   "channelNames": ["DRY","OCT","FRZ"]
+   ,
+   "name": "Mixer Stereo           ",
+   "parameters": [[0,13,14,0,1]
+    ,[]
+    ,[[[1,0,-700,0,0,0,0]
+      ]
+     ,[[13,0,-37,0,0,0,0]
+      ]
+     ,[[14,0,0,0,0,0,0]
+      ]
+     ]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "gui"}
+   }
+  ,{
+  "guid": "revc",
+   "specs": [0,0,0]
+   ,
+   "name": "Reverb (Clouds)        ",
+   "parameters": [0,13,14,13,14,1,17,28,38,70,50,-6,0]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "satu",
+   "specs": [1,0,0]
+   ,
+   "name": "Saturation             ",
+   "parameters": [[0,0,0,0]
+    ,[13,1,2]
+    ]
+   ,
+   "ui": {
+   "page": 1,
+    "items": [0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ,{
+  "guid": "usbt",
+   "specs": [0,0,0]
+   ,
+   "name": "USB audio (to host)    ",
+   "parameters": [0,13,14,3,4,5,6,7,8,9,10,11,12]
+   ,
+   "ui": {
+   "page": 0,
+    "items": [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ,
+    "display": "params"}
+   }
+  ]
+ ,
+ "ui": {
+ "currentSlot": 0,
+  "displayMode": "algorithm",
+  "perfPage": {
+  "display": "params",
+   "item": 0}
+  }
+ }
