@@ -1155,10 +1155,10 @@ function processParameterInfo( data ) {
 		output.send( arr );
 		let dd = log( "sent enum string request to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
-	} else if ( unit == 13 || unit == 14 || unit == 17 ) {
+	} else if ( unit == 16 || unit == 17 || unit == 18 ) {
 		unitStr = "<br>";
 		setTimeout( requestParameterValueString, 1000, p );
-		if ( unit == 17 ) {
+		if ( unit == 18 ) {
 			document.getElementById( "p" + p + "_pv" ).style = 'display:none;';
 			document.getElementById( "p" + p + "_n" ).style = 'display:inline;';
 		}
