@@ -506,10 +506,17 @@ function processRoutingInfo( data ) {
 	if ( slot >= slotCount ) {
 		return;
 	}
+	let format = data.length > 31;
 	let routing = [];
 	let c = 1;
 	for ( let i=0; i<6; ++i ) {
-		let d = data[c+0] | ( data[c+1] << 7 ) | ( data[c+2] << 14 ) | ( data[c+3] << 21 ) | ( data[c+4] << 28 );
+		let d = BigInt( data[c+0] ) | ( BigInt( data[c+1] ) << 7n ) | ( BigInt( data[c+2] ) << 14n ) | ( BigInt( data[c+3] ) << 21n ) | ( BigInt( data[c+4] ) << 28n );
+		if ( format ) {
+			c += 5;
+			d |= ( BigInt( data[c+0] ) | ( BigInt( data[c+1] ) << 7n ) | ( BigInt( data[c+2] ) << 14n ) | ( BigInt( data[c+3] ) << 21n ) | ( BigInt( data[c+4] ) << 28n ) ) << 35n;
+		} else {
+			d >>= 1;
+		}
 		c += 5;
 		routing.push( d );
 	}
@@ -586,18 +593,20 @@ function buildRoutingInfo() {
     localStorage.setItem( dntRoutingColour2Key, colour2 );
 
 	// follow signals from top to bottom
-	let signals = [ [0, 1,1,1,1,1,1,1,1,1,1,1,1, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0] ];
+	let signals = [ [1,1,1,1,1,1,1,1,1,1,1,1, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0] ];
+	let numBusses = signals[0].length;
 	for ( let s=0; s<slotCount; ++s ) {
 		let r = routingInfo[ s ];
 		let inputMask = netInputMask( r );
 		let outputMask = r[1];
 		let replaceMask = r[2];
 		let row = signals[ signals.length - 1 ];
-		let newRow = [ 0 ];
-		for ( let i=1; i<=28; ++i ) {
+		let newRow = [];
+		for ( let i=0; i<numBusses; ++i ) {
 			let v = row[i];
-			if ( outputMask & (1<<i) ) {
-				if ( replaceMask & (1<<i) ) {
+			let bi = BigInt(i);
+			if ( outputMask & (BigInt(1)<<bi) ) {
+				if ( replaceMask & (BigInt(1)<<bi) ) {
 					v = v + 1;
 					if ( v > 2 ) {
 						v = 1;
@@ -611,11 +620,20 @@ function buildRoutingInfo() {
 		signals.push( newRow );
 	}
 	
+	// don't show a load of unused aux busses
+	let last = signals[ signals.length - 1 ];
+	for ( let i=numBusses-1; i>=28; i-- ) {
+		if ( last[i] ) {
+			break;
+		}
+		numBusses -= 1;
+	}
+	
 	// strip signals that go nowhere
 	let showSignals = document.getElementById( 'show_signals' ).checked;
-	for ( let i=1; i<=28; ++i ) {
-		if ( showSignals && ( i == 13 ) ) {
-			i = 21;
+	for ( let i=0; i<numBusses; ++i ) {
+		if ( showSignals && ( i == 12 ) ) {
+			i = 20;
 		}
 		let hasInput = false;
 		for ( let s=slotCount; s>=0; s-- ) {
@@ -623,10 +641,11 @@ function buildRoutingInfo() {
 				let r = routingInfo[ s ];
 				let inputMask = netInputMask( r );
 				let replaceMask = r[2];
-				if ( replaceMask & (1<<i) ) {
+				let bi = BigInt(i);
+				if ( replaceMask & (BigInt(1)<<bi) ) {
 					hasInput = false;
 				}
-				if ( inputMask & (1<<i) ) {
+				if ( inputMask & (BigInt(1)<<bi) ) {
 					hasInput = true;
 				}
 			}
@@ -638,7 +657,7 @@ function buildRoutingInfo() {
 
 	let str = "<table class='routing'>";
 	let heading = "<tr class='routing'><th colspan=4 />";
-	for ( let i=0; i<28; ++i ) {
+	for ( let i=0; i<numBusses; ++i ) {
 		let ch = 1 + i;
 		let cl = "routingI";
 		if ( ch > 12 ) {
@@ -652,7 +671,7 @@ function buildRoutingInfo() {
 		heading += "<th class='" + cl + "'>" + ch + "</th>";
 	}
 	heading += "</tr>";
-	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=8>Aux</th></tr>";
+	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=44>Aux</th></tr>";
 	str += heading2;
 	str += heading;
 	let colours = [ "#ffffff", colour1, colour2, "#fcfcfc", darken( colour1 ), darken( colour2 ) ];
@@ -664,8 +683,8 @@ function buildRoutingInfo() {
 		let effectiveInput = inputMask | ( outputMask & ~replaceMask );
 		let row = signals[ s ];
 		str += "<tr class='routing'><td colspan=3 /><td />";
-		for ( let i=1; i<=28; ++i ) {
-			let ch = i;
+		for ( let i=0; i<numBusses; ++i ) {
+			let ch = 1 + i;
 			if ( ch > 12 ) {
 				ch -= 12;
 				if ( ch > 8 ) {
@@ -674,7 +693,8 @@ function buildRoutingInfo() {
 			}
 			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
 			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
-			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( effectiveInput & (1<<i) ) ? "&darr;" : "&nbsp;" ) + "</td>";
+			let bi = BigInt(i);
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( effectiveInput & (BigInt(1)<<bi) ) ? "&darr;" : "&nbsp;" ) + "</td>";
 		}
 		str += "</tr>";
 		str += "<tr class='routingSlot'>";
@@ -683,23 +703,24 @@ function buildRoutingInfo() {
 		str += "<td class='routingSlotName'><button onclick='editSlot(" + s + ")'>" + (s+1) + "</button></td>";
 		str += "<td class='routingSlotName'>" + slotNames[s] + "</td>";
 		let used = r[0] | r[5] | outputMask;
-		for ( let i=1; i<=28; ++i ) {
-			let ch = i;
+		for ( let i=0; i<numBusses; ++i ) {
+			let ch = 1 + i;
 			if ( ch > 12 ) {
 				ch -= 12;
 				if ( ch > 8 ) {
 					ch -= 8;
 				}
 			}
-			let sty = "background-color:" + ( ( used & (1<<i) ) ? "#d0d0d0" : ( row[i] ? colours[ row[i] + 3*(i&1) ] : "#f0f0f0" ) );
+			let bi = BigInt(i);
+			let sty = "background-color:" + ( ( used & (BigInt(1)<<bi) ) ? "#d0d0d0" : ( row[i] ? colours[ row[i] + 3*(i&1) ] : "#f0f0f0" ) );
 			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
-			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( used & (1<<i) ) ? ch : "&nbsp;" ) + "</td>";
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( used & (BigInt(1)<<bi) ) ? ch : "&nbsp;" ) + "</td>";
 		}
 		str += "</tr>";
 		row = signals[ s+1 ];
 		str += "<tr class='routing'><td colspan=3 /><td />";
-		for ( let i=1; i<=28; ++i ) {
-			let ch = i;
+		for ( let i=0; i<numBusses; ++i ) {
+			let ch = 1 + i;
 			if ( ch > 12 ) {
 				ch -= 12;
 				if ( ch > 8 ) {
@@ -708,8 +729,9 @@ function buildRoutingInfo() {
 			}
 			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
 			let cl = ( ch == 1 ) ? 'routingL' : 'routing';
-			let replace = replaceMask & (1<<i);
-			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( outputMask & (1<<i) ) ? ( replace ? "&#9523;" : "+" ) : "&nbsp;" ) + "</td>";
+			let bi = BigInt(i);
+			let replace = replaceMask & (BigInt(1)<<bi);
+			str += "<td class='" + cl + "' style='" + sty + "'>" + ( ( outputMask & (BigInt(1)<<bi) ) ? ( replace ? "&#9523;" : "+" ) : "&nbsp;" ) + "</td>";
 		}
 		str += "</tr>";
 	}
