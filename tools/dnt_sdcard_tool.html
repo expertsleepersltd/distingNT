@@ -129,6 +129,7 @@ for ( let i=0; i<127; ++i ) {
 <br>
 <button id='remount_button' onclick="remount()">Remount</button>
 <button id='reboot_button' onclick="reboot()">Reboot</button>
+<button id='bootloader_button' onclick="bootloader()">Enter bootloader</button>
 <button id='rescan_button' onclick="rescan()">Rescan plug-ins</button>
 <br>
 <textarea rows=5 cols=50 id="log" class="log" readOnly></textarea>
@@ -734,6 +735,14 @@ function reboot() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 	output.send( arr );
 	let dd = log( "sent reboot request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function bootloader() {
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x7F, 0x7F, 0xF7 ];
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	let dd = log( "sent bootloader request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
