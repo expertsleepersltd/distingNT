@@ -191,6 +191,7 @@ for ( let i=0; i<32; ++i ) {
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
 <label for="show_cpu">Show CPU:</label><input id='show_cpu' type='checkbox' onchange='showCPU()'>
 <button onclick="wake()">Wake</button>
+<!--<button onclick="requestVersion()">Version string</button>-->
 <!--<button onclick="queryPaths()">Query paths</button>-->
 <p>
 <label class="hidden" for="log">Log:</label><textarea rows=5 cols=50 id="log" accesskey="l" class="log" readOnly></textarea>
@@ -1814,6 +1815,10 @@ function onMIDIMessage(message) {
 		processNumAlgorithms( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x31 ) {
 		processAlgorithmInfo( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x32 ) {
+		// version string
+	    var str = String.fromCharCode.apply( null, data.slice( 7, -1 ) );
+		document.getElementById( "rxSysex" ).value += ( "\n-----\n" + str );
 	} else if ( data[6] == 0x40 ) {
 		if ( routingAnalysisMode || ( rxSlot == slot ) ) {
 			processAlgorithm( rxSlot, data.slice( 8, -1 ) );
@@ -1874,6 +1879,14 @@ function wake() {
 	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x07, 0xF7 ];
 	output.send( arr );
 	let dd = log( "sent wake request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function requestVersion() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x22, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent version string request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
