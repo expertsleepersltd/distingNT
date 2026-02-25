@@ -516,7 +516,7 @@ function processRoutingInfo( data ) {
 			c += 5;
 			d |= ( BigInt( data[c+0] ) | ( BigInt( data[c+1] ) << 7n ) | ( BigInt( data[c+2] ) << 14n ) | ( BigInt( data[c+3] ) << 21n ) | ( BigInt( data[c+4] ) << 28n ) ) << 35n;
 		} else {
-			d >>= 1;
+			d >>= 1n;
 		}
 		c += 5;
 		routing.push( d );
