@@ -98,6 +98,7 @@ button.moveSlot {
 </style>
 
 <script>
+const kNumPerfPageItems = 30;
 function log( t ) {
 	if ( !document.getElementById( "show_log" ).checked ) {
 		return;
@@ -201,6 +202,7 @@ for ( let i=0; i<32; ++i ) {
 
 <button class="big" onclick="showSlotEditor()">Edit parameters</button>
 <button class="big" onclick="showRoutingAnalysis()">Show routing</button>
+<button class="big" onclick="showPerfPage()">Performance Page</button>
 Module display mode:
 <button onclick="setDisplayMode(0)">Parameters</button>
 <button onclick="setDisplayMode(1)">Algorithm UI</button>
@@ -236,8 +238,6 @@ Module display mode:
 <input id='show_mapping_midi' type='checkbox' accesskey="m" onchange="toggleMappings('midi')">
 <label for="show_mapping_i2c">Show I2C mappings:</label>
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
-<label for="show_mapping_perf">Show perf page:</label>
-<input id='show_mapping_perf' type='checkbox' onchange="toggleMappings('perf')">
 <label for="show_pages">Show as:</label>
 <select id="show_pages" onchange='changePages()'><option value='false'>Flat list</option><option value='true'>Pages</option></select>
 <br>
@@ -263,6 +263,27 @@ Module display mode:
 
 </div> <!--routingAnalysis-->
 
+<div id=perfPage>
+
+<table>
+<tr><th>Item</th><th>Used</th><th>Slot</th><th>Parameter</th><th>Min</th><th>Max</th><th>Upper</th><th>Lower</th></tr>
+<script>
+for ( let i=0; i<kNumPerfPageItems; ++i ) {
+	document.write( "<tr class=" + ((i&1)?"a":"b") + "><td>" + (1+i) + "</td>" );
+	document.write( "<td><input id=perf" + i + "_u type='checkbox' class='param_c' onchange='perfChangedSlot(" + i + ")'></td>" );
+	document.write( "<td><select id=perf" + i + "_s class='param_e' onchange='perfChangedSlot(" + i + ")'></td>" );
+	document.write( "<td><select id=perf" + i + "_p class='param_e' onchange='perfChangedParam(" + i + ")'></td>" );
+	document.write( "<td><input id=perf" + i + "_min type='number' class='param_v' min=-32768 max=32767 onchange='perfChanged(" + i + ")'></td>" );
+	document.write( "<td><input id=perf" + i + "_max type='number' class='param_v' min=-32768 max=32767 onchange='perfChanged(" + i + ")'></td>" );
+	document.write( "<td><input id=perf" + i + "_s1 type='text' class='param_n' onchange='perfChanged(" + i + ")'></td>" );
+	document.write( "<td><input id=perf" + i + "_s2 type='text' class='param_n' onchange='perfChanged(" + i + ")'></td>" );
+	document.write( "</tr>" );
+}
+</script>
+</table>
+
+</div> <!--perfPage-->
+
 <script>
 const dntRoutingColour1Key = "dntRoutingColour1";
 const dntRoutingColour2Key = "dntRoutingColour2";
@@ -276,20 +297,33 @@ if ( !localStorage.getItem( dntRoutingColour2Key ) ) {
 document.getElementById( 'routing_colour1' ).value = localStorage.getItem( dntRoutingColour1Key );
 document.getElementById( 'routing_colour2' ).value = localStorage.getItem( dntRoutingColour2Key );
 
-var routingAnalysisMode = false;
+const modeSlotEditor = 0;
+const modeRoutingAnalysis = 1;
+const modePerfPage = 2;
+var appMode = modeSlotEditor;
 function showSlotEditor() {
-	routingAnalysisMode = false;
+	appMode = modeSlotEditor;
 	document.getElementById( "routingAnalysis" ).style.display = "none";
 	request();
 	document.getElementById( "slotEditor" ).style.display = "inline";
+	document.getElementById( "perfPage" ).style.display = "none";
 }
 function showRoutingAnalysis() {
-	routingAnalysisMode = true;
+	appMode = modeRoutingAnalysis;
 	document.getElementById( "slotEditor" ).style.display = "none";
 	requestRouting();
 	document.getElementById( "routingAnalysis" ).style.display = "inline";
+	document.getElementById( "perfPage" ).style.display = "none";
+}
+function showPerfPage() {
+	appMode = modePerfPage;
+	document.getElementById( "slotEditor" ).style.display = "none";
+	requestRouting();
+	document.getElementById( "routingAnalysis" ).style.display = "none";
+	document.getElementById( "perfPage" ).style.display = "inline";
 }
 document.getElementById( "routingAnalysis" ).style.display = "none";
+document.getElementById( "perfPage" ).style.display = "none";
 
 const dntLogKey = "dntShowLog";
 
@@ -360,11 +394,20 @@ function lookupGuid( guid ) {
 	return -1;
 }
 
+var nextAlgForPerf = 0;
+function getNextAlgForPerf() {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x42, nextAlgForPerf, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent num parameters request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
 function processAlgorithm( slot, data ) {
 	let guid = data.slice( 0, 4 );
 	let f = lookupGuid( guid );
 	if ( f >= 0 ) {
-		if ( routingAnalysisMode ) {
+		if ( appMode != modeSlotEditor ) {
 			guids[ slot ] = f;
 		} else {
 			document.getElementById( "slot_algorithm_name" ).innerHTML = factories[f][3][0];
@@ -378,10 +421,24 @@ function processAlgorithm( slot, data ) {
 		}
 		name += String.fromCharCode( n );
 	}
-	if ( routingAnalysisMode ) {
+	if ( appMode != modeSlotEditor ) {
 		slotNames[ slot ] = name;
 	} else {
 		document.getElementById( "slot_name" ).value = name;
+	}
+
+	if ( slot == ( slotCount - 1 ) ) {
+		if ( appMode == modePerfPage ) {
+			let str = "";
+			for ( let s=0; s<slotCount; ++s ) {
+				str += "<option value=" + s + ">" + slotNames[s] + "</option>";
+			}
+			for ( let i=0; i<kNumPerfPageItems; ++i ) {
+				document.getElementById( "perf" + i + "_s" ).innerHTML = str;
+			}
+			nextAlgForPerf = 0;
+			setTimeout( getNextAlgForPerf, 20 );
+		}
 	}
 }
 
@@ -484,6 +541,7 @@ var slotCount = 0;
 var routingInfo = [];
 var guids = [];
 var slotNames = [];
+var slotParamNames = [];
 
 function processSlotCount( data ) {
 	slotCount = data[0];
@@ -495,10 +553,12 @@ function processSlotCount( data ) {
 	for ( let i=0; i<slotCount; ++i ) {
 		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, i, 0xF7 ];
 		output.send( arr );
-		arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x61, i, 0xF7 ];
-		output.send( arr );
-		let dd = log( "sent routing request to disting NT" );
-		dumpSysex( arr, "txSysex", dd+"\n" );
+		if ( appMode == modeRoutingAnalysis ) {
+			arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x61, i, 0xF7 ];
+			output.send( arr );
+			let dd = log( "sent routing request to disting NT" );
+			dumpSysex( arr, "txSysex", dd+"\n" );
+		}
 	}
 }
 
@@ -550,6 +610,51 @@ function processPathsQuery( data ) {
 		}
 	}
 	confirm( msg );
+}
+
+const kPerfPageVersion = 1;
+
+function processPerfPage( data ) {
+	let c = 0;
+	let version = data[c]; c++;
+	if ( version < 1 || version > 1 ) {
+		return;
+	}
+	let item = data[c]; c++;
+	let flags = data[c]; c++;
+	let used = flags & 1;
+	document.getElementById( "perf" + item + "_u" ).checked = used;
+	if ( used ) {
+		let slot = data[c]; c++;
+		let param = extractShort( data.slice( c, c+3 ) ); c += 3;
+		let min = extractShort( data.slice( c, c+3 ) ); c += 3;
+		let max = extractShort( data.slice( c, c+3 ) ); c += 3;
+		let strs = [];
+		for ( let s=0; s<2; ++s ) {
+			let str = "";
+			for ( let i = 0; i < 1000; ++i ) {
+				let n = data[c++];
+				if ( n == 0 ) {
+					break;
+				}
+				str += String.fromCharCode( n );
+			}
+			strs[s] = str;
+		}
+
+		let str = "";
+		for ( let s=0; s<slotParamNames[slot].length; ++s ) {
+			str += "<option value=" + s + ">" + slotParamNames[slot][s] + "</option>";
+		}
+		document.getElementById( "perf" + item + "_p" ).innerHTML = str;
+
+		document.getElementById( "perf" + item + "_s" ).value = slot;
+		document.getElementById( "perf" + item + "_p" ).value = param;
+		document.getElementById( "perf" + item + "_min" ).value = min;
+		document.getElementById( "perf" + item + "_max" ).value = max;
+		document.getElementById( "perf" + item + "_s1" ).value = strs[0];
+		document.getElementById( "perf" + item + "_s2" ).value = strs[1];
+	}
 }
 
 function netInputMask( r ) {
@@ -763,7 +868,7 @@ function toggleMappings( n ) {
 }
 
 var mappingRefreshed = false;
-var mappingTypes = [ "cv", "midi", "i2c", "perf" ];
+var mappingTypes = [ "cv", "midi", "i2c" ];
 
 function anyMappingVisible() {
 	for ( let n of mappingTypes ) {
@@ -868,13 +973,13 @@ function processOutputModeUsage( data ) {
     }
 }
 
-var mappingVersion = 5;
+var mappingVersion = 6;
 
 function processMapping( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let c = 3;
 	let version = data[c]; c++;
-	if ( version < 1 || version > 5 ) {
+	if ( version < 1 || version > 6 ) {
 		alert( "Unknown mapping data version" );
 		return;
 	}
@@ -934,14 +1039,20 @@ function processMapping( data ) {
 		document.getElementById( "p" + p + "_i2c_min" ).value = min;
 		document.getElementById( "p" + p + "_i2c_max" ).value = max;
 	}
-	{
-		let perfPage = 0;
-		if ( version >= 5 ) {
-			perfPage = data[c]; c++;
-		}
-		document.getElementById( "p" + p + "_perf_index" ).value = perfPage;
+	if ( version == 5 ) {
+		c++;
 	}
 	mappingRefreshed = true;
+}
+
+var nextParamForPerf = 0;
+function getNextParameterForPerf() {
+	let slot = nextAlgForPerf;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x43, slot, (nextParamForPerf>>14)&3, (nextParamForPerf>>7)&0x7f, nextParamForPerf&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent parameter info request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 nextParameterToGet = 0;
@@ -996,15 +1107,30 @@ function processNumParameters( data ) {
 	}
 }
 
+function processNumParametersForPerf( data ) {
+	let num = extractShort( data.slice( 0, 3 ) );
+	if ( num >= 256 ) {
+		alert( "Invalid num parameters in processNumParametersForPerf()" );
+		return;
+	}
+	let arr = [];
+	for ( let i=0; i<num; ++i ) {
+		arr.push( "" );
+	}
+	slotParamNames[ nextAlgForPerf ] = arr;
+
+	nextParamForPerf = 0;
+	setTimeout( getNextParameterForPerf, 20 );
+}
+
 function parameterTableHeader() {
 	let str = "";
 	str += "<thead>";
-	str += "<tr><th colspan=10>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th><th class='map_perf'>Perf Page</th></tr>";
+	str += "<tr><th colspan=10>Preset</th><th colspan=6 class='map_cv'>CV Mapping</th><th colspan=8 class='map_midi'>MIDI Mapping</th><th colspan=5 class='map_i2c'>I2C Mapping</th></tr>";
 	str += "<tr><th></th><th></th><th>Name</th><th></th><th>Min</th><th>Max</th><th>Default</th><th>Unit</th><th>Value</th><th>Control</th>";
 	str += "<th class='map_cv'>Source</th><th class='map_cv'>Bus</th><th class='map_cv'>Unipolar</th><th class='map_cv'>Gate</th><th class='map_cv'>Volts</th><th class='map_cv'>Delta</th>";
 	str += "<th class='map_midi'>Channel</th><th class='map_midi'>Type</th><th class='map_midi'>CC</th><th class='map_midi'>Enabled</th><th class='map_midi'>Relative</th><th class='map_midi'>Symmetric</th><th class='map_midi'>Min</th><th class='map_midi'>Max</th>";
 	str += "<th class='map_i2c'>ID</th><th class='map_i2c'>Enabled</th><th class='map_i2c'>Symmetric</th><th class='map_i2c'>Min</th><th class='map_i2c'>Max</th>";
-	str += "<th class='map_perf'>Index</th>";
 	str += "</tr>";
 	str += "</thead>";
 	return str;
@@ -1078,8 +1204,6 @@ function tableRowForParameter( i ) {
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_sym type='checkbox' class='param_c' onchange='mapping_i2c_sym(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_min type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_min(" + i + ")'></td>";
 			str += "<td class='map_i2c'><input id=p" + i + "_i2c_max type='number' class='param_v' size=6 min='-32768' max='32767' onchange='mapping_i2c_max(" + i + ")'></td>";
-
-			str += "<td class='map_perf'><input id=p" + i + "_perf_index type='number' class='param_v' size=3 min='0' max='15' onchange='mapping_perf_index(" + i + ")'></td>";
 
 	return str;
 }
@@ -1193,6 +1317,37 @@ function processParameterInfo( data ) {
 	var s = document.getElementById( "p" + p + "_s" );
 	s.min = min;
 	s.max = max;
+}
+
+function processParameterInfoForPerf( data ) {
+	let name = "";
+	for ( let i = 0; i < 24; ++i ) {
+		var n = data[13+i];
+		if ( n == 0 ) {
+			++i;
+			break;
+		}
+		name += String.fromCharCode( n );
+	}
+	slotParamNames[ nextAlgForPerf ][ nextParamForPerf ] = name;
+	
+	nextParamForPerf += 1;
+	if ( nextParamForPerf >= slotParamNames[ nextAlgForPerf ].length ) {
+		nextAlgForPerf += 1;
+		if ( nextAlgForPerf >= slotCount ) {
+			let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+			for ( let i=0; i<kNumPerfPageItems; ++i ) {
+				let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x57, i, 0xF7 ];
+				output.send( arr );
+				let dd = log( "sent perf page request to disting NT" );
+				dumpSysex( arr, "txSysex", dd+"\n" );
+			}
+		} else {
+			getNextAlgForPerf();
+		}
+	} else {
+		getNextParameterForPerf();
+	}
 }
 
 function processAllParameterValues( data ) {
@@ -1538,19 +1693,51 @@ function mapping_i2c_max( p ) {
 	mapping_i2c( p );
 }
 
-function mapping_perf( p ) {
-	let index = document.getElementById( "p" + p + "_perf_index" ).value;
+function perfChangedSlot( item ) {
+	let slot = document.getElementById( "perf" + item + "_s" ).value;
+	let str = "";
+	for ( let s=0; s<slotParamNames[slot].length; ++s ) {
+		str += "<option value=" + s + ">" + slotParamNames[slot][s] + "</option>";
+	}
+	document.getElementById( "perf" + item + "_p" ).innerHTML = str;
 
-	let slot = document.getElementById( 'slot' ).value;
+	perfChangedParam( item );
+}
+function perfChangedParam( item ) {
+	document.getElementById( "perf" + item + "_min" ).value = -32768;
+	document.getElementById( "perf" + item + "_max" ).value = 32767;
+	document.getElementById( "perf" + item + "_s1" ).value = "";
+	document.getElementById( "perf" + item + "_s2" ).value = "";
+	
+	perfChanged( item );
+}
+function perfChanged( item ) {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x54, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, mappingVersion, index, 0xF7 ];
+	let used = document.getElementById( "perf" + item + "_u" ).checked;
+	let arr;
+	if ( !used ) {
+		arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x58, kPerfPageVersion, item, 0, 0xF7 ];
+	} else {
+		let slot = document.getElementById( "perf" + item + "_s" ).value;
+		let p = document.getElementById( "perf" + item + "_p" ).value;
+		let min = document.getElementById( "perf" + item + "_min" ).value;
+		let max = document.getElementById( "perf" + item + "_max" ).value;
+		let s1 = document.getElementById( "perf" + item + "_s1" ).value;
+		let s2 = document.getElementById( "perf" + item + "_s2" ).value;
+		arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x58, kPerfPageVersion, item, 1, slot, (p>>14)&3, (p>>7)&0x7f, p&0x7f, (min>>14)&3, (min>>7)&0x7f, min&0x7f, (max>>14)&3, (max>>7)&0x7f, max&0x7f ];
+		for ( let i = 0; i < s1.length; ++i ) {
+			arr.push( s1.charCodeAt( i ) );
+		}
+		arr.push( 0x00 );
+		for ( let i = 0; i < s2.length; ++i ) {
+			arr.push( s2.charCodeAt( i ) );
+		}
+		arr.push( 0x00 );
+		arr.push( 0xF7 );
+	}
 	output.send( arr );
 	let dd = log( "sent perf page update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-}
-
-function mapping_perf_index( p ) {
-	mapping_perf( p );
 }
 </script>
 
@@ -1820,17 +2007,21 @@ function onMIDIMessage(message) {
 	    var str = String.fromCharCode.apply( null, data.slice( 7, -1 ) );
 		document.getElementById( "rxSysex" ).value += ( "\n-----\n" + str );
 	} else if ( data[6] == 0x40 ) {
-		if ( routingAnalysisMode || ( rxSlot == slot ) ) {
+		if ( ( appMode != modeSlotEditor ) || ( rxSlot == slot ) ) {
 			processAlgorithm( rxSlot, data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x41 ) {
     	processPresetName( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x42 ) {
-		if ( rxSlot == slot ) {
+		if ( appMode != modeSlotEditor ) {
+			processNumParametersForPerf( data.slice( 8, -1 ) );
+		} else if ( rxSlot == slot ) {
 			processNumParameters( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x43 ) {
-		if ( rxSlot == slot ) {
+		if ( appMode != modeSlotEditor ) {
+			processParameterInfoForPerf( data.slice( 8, -1 ) );
+		} else if ( rxSlot == slot ) {
 			processParameterInfo( data.slice( 8, -1 ) );
 		}
 	} else if ( data[6] == 0x44 ) {
@@ -1865,6 +2056,8 @@ function onMIDIMessage(message) {
 		}
 	} else if ( data[6] == 0x56 ) {
 		processPathsQuery( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x57 ) {
+		processPerfPage( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x60 ) {
 		processSlotCount( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x61 ) {
@@ -1899,7 +2092,7 @@ function queryPaths() {
 }
 
 function refresh() {
-	if ( routingAnalysisMode ) {
+	if ( appMode != modeSlotEditor ) {
 		requestRouting();
 	} else {
 		request();
