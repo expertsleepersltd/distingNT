@@ -112,6 +112,7 @@ local rootNoteNames = {
     "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"
 }
 local showNewSequenceIndicator = false
+local prevGenerateNew = 0
 
 -- Utility functions
 local function weightedRandom(weights)
@@ -531,7 +532,9 @@ return {
 
         scale = scales[scaleIndex] or scales[1]
 
-        if self.parameters[13] == 1 then generateSequence() end
+        local generateNew = self.parameters[13]
+        if generateNew == 1 and prevGenerateNew == 0 then generateSequence() end
+        prevGenerateNew = generateNew
 
         if gateDuration <= 0 then gateDuration = nextGateDuration end
 
