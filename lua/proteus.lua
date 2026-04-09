@@ -9,7 +9,7 @@
 ]] --[[
 MIT License
 
-Copyright (c) 2022 Seaside Modular
+Copyright (c) 2022-2026 Seaside Modular
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -189,8 +189,8 @@ end
 local function findScaleDegreeIndex(noteValue)
     -- Convert V/Oct back to MIDI and find which scale tone it belongs to
     local midiNote = noteValue * 12 + 60
-    local noteInScale = (midiNote - 60 - rootNote) % 12 + 1 -- Get semitone within octave (1-12)
-    
+    local noteInScale = ((midiNote - 60 - rootNote) % 12 + 12) % 12 + 1 -- Get semitone within octave (1-12)
+
     for i, degree in ipairs(scale) do
         if degree == noteInScale then
             return i
@@ -242,7 +242,7 @@ local function changeOctave(octaveChange)
         return -- Can't go lower
     else
         -- Update existing sequence notes by transposing them
-        for i = 1, maxSteps do
+        for i = 1, sequenceLength do
             if sequence[i] and sequence[i].pitch then
                 -- Transpose pitch by octave (1 octave = 1V in V/Oct)
                 sequence[i].pitch = sequence[i].pitch + octaveChange
@@ -279,7 +279,7 @@ local function updateRests()
     -- Apply muted status using the shuffled rest order (matching original C++)
     for i = 1, sequenceLength do
         local stepIndex = restOrder[i]
-        if stepIndex and stepIndex <= maxSteps then
+        if stepIndex and stepIndex <= sequenceLength and sequence[stepIndex] then
             if i <= numRestNotes then
                 -- This step should be muted
                 sequence[stepIndex].muted = true
@@ -314,10 +314,10 @@ local function generateSequence()
     end
     
     -- Generate all notes first (no rests yet, matching original C++)
-    for i = 1, maxSteps do
+    for i = 1, sequenceLength do
         local noteKind
         local noteValue
-        
+
         -- First note is always new, others follow weighted relationship logic
         if i == 1 then
             noteKind = NM_NEW
@@ -325,7 +325,7 @@ local function generateSequence()
             -- weightedRandom returns 1-based index, convert to 0-based for noteKind
             noteKind = weightedRandom(noteOptionWeights) - 1
         end
-        
+
         if noteKind == NM_REPEAT and prevNote then
             noteValue = prevNote.pitch
         elseif (noteKind == NM_UP or noteKind == NM_DOWN) and prevNote then
@@ -333,11 +333,14 @@ local function generateSequence()
         else -- NM_NEW
             noteValue = generateNote()
         end
-        
+
         -- All notes start as active, muted status applied later
         sequence[i] = {pitch = noteValue, muted = false}
         prevNote = sequence[i] -- Update prevNote after EVERY note (matching original)
     end
+
+    -- Reset prevNote to dummy value for next sequence
+    prevNote = {pitch = 0, muted = false}
     
     -- Now apply muted status using the sophisticated rest distribution system
     updateRests()
@@ -364,8 +367,8 @@ return {
                 {"Sequence Probability", 0, 100, sequenceProbability, kPercent},
                 {"Gate Duration", 20, 2000, gateDuration, kMs},
                 {"Base Octave", -2, 5, baseOctave, kInt},
-                {"Scale", scaleNames, scaleIndex, kEnum},
-                {"Root Note", rootNoteNames, 0, kEnum},
+                {"Scale", scaleNames, 1, kEnum},
+                {"Root Note", rootNoteNames, 1, kEnum},
                 {"Patience", 1, 50, poissonLambda, kInt},
                 {"Octave Change %", 0, 100, octaveChangeProbability, kPercent},
                 {"Note Change %", 0, 100, noteChangeProbability, kPercent},
@@ -435,12 +438,20 @@ return {
             end
 
             local stepData = sequence[currentStep]
-            if stepData and not stepData.muted then
-                -- If this note is not muted, activate gate and set release timer
-                gateActive = true
-                gateDuration = nextGateDuration
-                -- Set gate release time to the current gate duration in seconds
-                gateReleaseTime = gateDuration / 1000
+            if stepData then
+                if not stepData.muted then
+                    -- If this note is not muted, activate gate and set release timer
+                    gateActive = true
+                    gateDuration = nextGateDuration
+                    -- Set gate release time to the current gate duration in seconds
+                    gateReleaseTime = gateDuration / 1000
+                else
+                    -- Step is muted, deactivate gate
+                    gateActive = false
+                end
+            else
+                -- Safety: no step data, deactivate gate
+                gateActive = false
             end
         end
     end,
@@ -450,23 +461,24 @@ return {
     step = function(self, dt, inputs)
         local prevDensity = density
         local prevSequenceLength = sequenceLength
-        
-        sequenceLength = self.parameters[1]
-        density = self.parameters[2]
-        sequenceProbability = self.parameters[3]
-        nextGateDuration = self.parameters[4]
+        local prevAccumulate = accumulate
+
+        sequenceLength = math.max(1, math.min(32, self.parameters[1]))
+        density = math.max(0, math.min(100, self.parameters[2]))
+        sequenceProbability = math.max(0, math.min(100, self.parameters[3]))
+        nextGateDuration = math.max(20, self.parameters[4])
         baseOctave = self.parameters[5]
-        scaleIndex = self.parameters[6]
-        rootNote = self.parameters[7] - 1
-        poissonLambda = self.parameters[8]
-        octaveChangeProbability = self.parameters[9]
-        noteChangeProbability = self.parameters[10]
+        scaleIndex = math.max(1, math.min(#scales, self.parameters[6]))
+        rootNote = math.max(1, math.min(12, self.parameters[7])) - 1
+        poissonLambda = math.max(1, math.min(50, self.parameters[8]))
+        octaveChangeProbability = math.max(0, math.min(100, self.parameters[9]))
+        noteChangeProbability = math.max(0, math.min(100, self.parameters[10]))
         
         -- Update rest distribution if density changed (but keep same rest order)
         if density ~= prevDensity then
             updateRests() -- This only updates muted status, doesn't reshuffle
         end
-        
+
         -- Only regenerate rest order if sequence length changed
         if sequenceLength ~= prevSequenceLength then
             -- Need to regenerate rest order for new length
@@ -478,8 +490,13 @@ return {
                 restOrder[i], restOrder[j] = restOrder[j], restOrder[i]
             end
             updateRests()
+
+            -- Ensure currentStep is valid for new sequence length
+            if currentStep > sequenceLength then
+                currentStep = 1
+            end
         end
-        
+
         -- Handle octave range setting
         local octaveRangeSetting = self.parameters[11]
         if octaveRangeSetting == 1 then
@@ -492,21 +509,27 @@ return {
             maxOctaveOffsetUp = 2
             maxOctaveOffsetDown = 2
         end
-        
+
         -- Handle mutation mode setting
         local mutationMode = self.parameters[12]
         if mutationMode == 1 then -- Normal
             mutate = true
             accumulate = true
         elseif mutationMode == 2 then -- Regen Only
-            mutate = true
+            mutate = false
             accumulate = false
         else -- mutationMode == 3, Locked
             mutate = false
             accumulate = false
         end
-        
-        scale = scales[scaleIndex]
+
+        -- Reset repetition counter when switching back into accumulate mode so the
+        -- Poisson CDF starts fresh rather than from a stale count.
+        if accumulate and not prevAccumulate then
+            repetitionCount = 0
+        end
+
+        scale = scales[scaleIndex] or scales[1]
 
         if self.parameters[13] == 1 then generateSequence() end
 
@@ -539,8 +562,8 @@ return {
         return {
             ((self and self.parameters and self.parameters[2]) or
                 density) / 100.0, -- Pot 1: Density
-            ((self and self.parameters and self.parameters[8]) or
-                poissonLambda - 1) / 49.0, -- Pot 2: Patience (scaled 0-1)
+            (((self and self.parameters and self.parameters[8]) or
+                poissonLambda) - 1) / 49.0, -- Pot 2: Patience (scaled 0-1)
             ((self and self.parameters and self.parameters[10]) or 
                 noteChangeProbability) / 100.0 -- Pot 3: Note Change Probability
         }
@@ -595,38 +618,46 @@ return {
 
         local gridX = margin
         local gridY = 35
-        local cellWidth = 12
-        local cellHeight = 12
-        local spacing = 2
-        local cellsPerRow = 8
+        local gridRows = 2
+        local availWidth = 144  -- gridX to paramsX=150, minus 2px margin
+        local availHeight = 27  -- gridY=35 to y=62, leaving 1px before screen edge
+        local cellsPerRow = math.max(1, math.ceil(sequenceLength / gridRows))
+        local stepW = math.floor(availWidth / cellsPerRow)
+        local stepH = math.floor(availHeight / gridRows)
+        local cellWidth = stepW - 1
+        local cellHeight = stepH - 1
 
         for i = 1, sequenceLength do
             local stepData = sequence[i]
             local row = math.floor((i - 1) / cellsPerRow)
             local col = (i - 1) % cellsPerRow
 
-            local x = gridX + col * (cellWidth + spacing)
-            local y = gridY + row * (cellHeight + spacing)
+            local x = gridX + col * stepW
+            local y = gridY + row * stepH
 
-            local brightness = 1
-            if not stepData.muted then brightness = 8 end
-            if i == currentStep then brightness = 15 end
+            if not stepData then
+                drawRectangle(x, y, x + cellWidth, y + cellHeight, 1)
+            else
+                local brightness = 1
+                if not stepData.muted then brightness = 8 end
+                if i == currentStep then brightness = 15 end
 
-            drawRectangle(x, y, x + cellWidth, y + cellHeight, brightness)
+                drawRectangle(x, y, x + cellWidth, y + cellHeight, brightness)
 
-            -- Draw pitch line for all notes (muted ones will be dimmer)
-            if stepData.pitch then
-                local pitchValue = (stepData.pitch * 12) % 12
-                local pitchHeight = math.floor((cellHeight - 4) *
-                                                   (pitchValue / 12))
-                drawLine(x + 2, y + pitchHeight + 2, x + cellWidth - 2,
-                         y + pitchHeight + 2, 0)
+                -- Draw pitch line (only if cell is large enough)
+                if stepData.pitch and cellWidth >= 4 and cellHeight >= 4 then
+                    local pitchValue = (stepData.pitch * 12) % 12
+                    local pitchHeight = math.floor((cellHeight - 4) *
+                                                       (pitchValue / 12))
+                    drawLine(x + 2, y + pitchHeight + 2, x + cellWidth - 2,
+                             y + pitchHeight + 2, 0)
+                end
             end
         end
 
         local paramsX = 150
-        local paramsY = 26
-        local lineHeight = 8
+        local paramsY = 15
+        local lineHeight = 6
 
         drawTinyText(paramsX, paramsY,
                      "Step: " .. currentStep .. "/" .. sequenceLength)
@@ -636,17 +667,18 @@ return {
                      "Patience: " .. poissonLambda)
         drawTinyText(paramsX, paramsY + lineHeight * 3,
                      "Mutate: " .. noteChangeProbability .. "%")
-        drawTinyText(paramsX, paramsY + lineHeight * 4, 
+        drawTinyText(paramsX, paramsY + lineHeight * 4,
                      "Oct: " .. baseOctave .. " (" .. octaveOffset .. ")")
         drawTinyText(paramsX, paramsY + lineHeight * 5,
                      "Reps: " .. repetitionCount)
 
         -- Show mutation status
         local modeText = "Normal"
-        if not mutate and not accumulate then
+        local mutationMode = self.parameters[12]
+        if mutationMode == 3 then
             modeText = "Locked"
-        elseif mutate and not accumulate then
-            modeText = "Regen"
+        elseif mutationMode == 2 then
+            modeText = "Regen Only"
         end
         drawTinyText(paramsX, paramsY + lineHeight * 6,
                      "Mode: " .. modeText)
