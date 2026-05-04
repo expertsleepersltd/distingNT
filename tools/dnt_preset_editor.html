@@ -247,6 +247,15 @@ Module display mode:
 <label for="slot_name">Custom name:</label><input id='slot_name' type='text' onchange='send_slot_name()'>
 <p>
 <button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
+<button onclick='setAllMIDIMapCh()' class='map_midi'>Set all MIDI channels to</button>
+<select class='map_midi' id='setAllMIDIMapCh_ch'>
+<script>
+for ( let i=1; i<=16; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" )
+}
+</script>
+</select>
+
 <p>
 <div id='parameters'></div>
 
@@ -1655,6 +1664,20 @@ function mapping_midi_min( p ) {
 }
 function mapping_midi_max( p ) {
 	mapping_midi( p );
+}
+var setAllMIDIMapCh_next = 0;
+function setAllMIDIMapCh_one() {
+    let e = document.getElementById( 'p' + setAllMIDIMapCh_next + '_midi_ch' );
+	if ( e ! null ) {
+		e.value = document.getElementById( 'setAllMIDIMapCh_ch' ).value - 1;
+		mapping_midi_ch( setAllMIDIMapCh_next );
+		setAllMIDIMapCh_next += 1;
+		timeout( setAllMIDIMapCh_one, 10 );
+	}
+}
+function setAllMIDIMapCh() {
+	setAllMIDIMapCh_next = 0;
+	setAllMIDIMapCh_one();
 }
 
 function mapping_i2c( p ) {
