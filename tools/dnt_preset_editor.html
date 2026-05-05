@@ -1668,7 +1668,7 @@ function mapping_midi_max( p ) {
 var setAllMIDIMapCh_next = 0;
 function setAllMIDIMapCh_one() {
     let e = document.getElementById( 'p' + setAllMIDIMapCh_next + '_midi_ch' );
-	if ( e ! null ) {
+	if ( e != null ) {
 		e.value = document.getElementById( 'setAllMIDIMapCh_ch' ).value - 1;
 		mapping_midi_ch( setAllMIDIMapCh_next );
 		setAllMIDIMapCh_next += 1;
