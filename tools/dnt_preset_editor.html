@@ -963,7 +963,10 @@ const backgroundColours = [
 ];
 
 function applyOutputBackground( p, c ) {
-	document.getElementById( "p" + p + "_out" ).style.background = c;
+	let e = document.getElementById( "p" + p + "_out" );
+	if ( e != null ) {
+		e.style.background = c;
+	}
 }
 
 backgroundColour = 0;
