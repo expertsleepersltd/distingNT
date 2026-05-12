@@ -1672,7 +1672,7 @@ function setAllMIDIMapCh_one() {
 		e.value = document.getElementById( 'setAllMIDIMapCh_ch' ).value - 1;
 		mapping_midi_ch( setAllMIDIMapCh_next );
 		setAllMIDIMapCh_next += 1;
-		timeout( setAllMIDIMapCh_one, 10 );
+		setTimeout( setAllMIDIMapCh_one, 10 );
 	}
 }
 function setAllMIDIMapCh() {
