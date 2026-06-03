@@ -985,13 +985,13 @@ function processOutputModeUsage( data ) {
     }
 }
 
-var mappingVersion = 6;
+var mappingVersion = 7;
 
 function processMapping( data ) {
 	let p = extractShort( data.slice( 0, 3 ) );
 	let c = 3;
 	let version = data[c]; c++;
-	if ( version < 1 || version > 6 ) {
+	if ( version < 1 || version > 7 ) {
 		alert( "Unknown mapping data version" );
 		return;
 	}
@@ -1024,9 +1024,6 @@ function processMapping( data ) {
 		}
 		let min = extractShort( data.slice( c, c+3 ) ); c += 3;
 		let max = extractShort( data.slice( c, c+3 ) ); c += 3;
-		if ( flags & 4 ) {
-			cc = 128;
-		}
 		let type = flags2 >> 2;
 		document.getElementById( "p" + p + "_midi_ch" ).value = ( flags >> 3 ) & 0xf;
 		document.getElementById( "p" + p + "_midi_type" ).value = type;
@@ -1198,13 +1195,13 @@ function tableRowForParameter( i ) {
 			}
 			str += "</select></td>";
 			str += "<td class='map_midi'><select id=p" + i + "_midi_type class='param_v' onchange='mapping_midi_type(" + i + ")'>";
-			str += "<option value=0>CC</option><option value=1>Note - momentary</option><option value=2>Note - toggle</option><option value=3>14 bit CC - low</option><option value=4>14 bit CC - high</option>";
+			str += "<option value=0>CC</option><option value=1>Note - momentary</option><option value=2>Note - toggle</option><option value=3>14 bit CC - low</option><option value=4>14 bit CC - high</option><option value=5>Pitch bend</option><option value=6>Channel pressure</option>";
 			str += "</select></td>";
 			str += "<td class='map_midi'><select id=p" + i + "_midi_cc class='param_v' onchange='mapping_midi_cc(" + i + ")'>";
 			for ( let j=0; j<128; ++j ) {
 				str += "<option value=" + j + ">" + j + "</option>";
 			}
-			str += "<option value=128>Aftertouch</option></select></td>";
+			str += "</select></td>";
 			str += "<td class='map_midi'><input id=p" + i + "_midi_en type='checkbox' class='param_c' onchange='mapping_midi_en(" + i + ")'></td>";
 			str += "<td class='map_midi'><input id=p" + i + "_midi_rel type='checkbox' class='param_c' onchange='mapping_midi_rel(" + i + ")'></td>";
 			str += "<td class='map_midi'><input id=p" + i + "_midi_sym type='checkbox' class='param_c' onchange='mapping_midi_sym(" + i + ")'></td>";
@@ -1626,11 +1623,6 @@ function mapping_midi( p ) {
 	let flags2 = rel | ( 0 << 1 ) | ( type << 2 );
 	let min = document.getElementById( "p" + p + "_midi_min" ).value;
 	let max = document.getElementById( "p" + p + "_midi_max" ).value;
-
-	if ( cc == 128 ) {
-		cc = 0;
-		flags |= (1<<2);
-	}
 
 	let slot = document.getElementById( 'slot' ).value;
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
