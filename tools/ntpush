@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+# Command-line wrapper for push_plugin_to_device.py.
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+UPLOADER="$SCRIPT_DIR/push_plugin_to_device.py"
+
+usage() {
+    cat <<'EOF'
+Usage: ntpush [OPTIONS] <plugin.o> [sysex_id] [preset_name]
+
+Upload a disting NT plug-in over MIDI SysEx.
+
+Arguments:
+  plugin.o     Plug-in object file to upload
+  sysex_id     Device SysEx ID, from 0 to 127 (default: 0)
+  preset_name  Save and restore the current state under this name
+
+Options:
+  -h, --help   Show this help and exit
+
+Environment:
+  NTPUSH_PYTHON  Python interpreter to use. If unset, ntpush uses
+                 tools/venv/bin/python (or tools/.venv/bin/python) when
+                 present, otherwise python3.
+EOF
+}
+
+fail() {
+    echo "ntpush: $*" >&2
+    echo "Try 'ntpush --help' for usage." >&2
+    exit 2
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    --)
+        shift
+        ;;
+    -*)
+        fail "unknown option: $1"
+        ;;
+esac
+
+[ $# -gt 0 ] || fail "missing plug-in path"
+[ $# -le 3 ] || fail "too many arguments"
+
+PLUGIN_PATH="$1"
+SYSEX_ID="${2:-0}"
+PRESET_NAME="${3:-}"
+
+[ -f "$PLUGIN_PATH" ] || fail "plug-in is not a regular file: $PLUGIN_PATH"
+[ -r "$PLUGIN_PATH" ] || fail "plug-in is not readable: $PLUGIN_PATH"
+
+case "$SYSEX_ID" in
+    ''|*[!0-9]*) fail "sysex_id must be an integer from 0 to 127: $SYSEX_ID" ;;
+esac
+[ "$SYSEX_ID" -le 127 ] || fail "sysex_id must be from 0 to 127: $SYSEX_ID"
+
+if [ -n "${NTPUSH_PYTHON:-}" ]; then
+    PYTHON="$NTPUSH_PYTHON"
+elif [ -x "$SCRIPT_DIR/venv/bin/python" ]; then
+    PYTHON="$SCRIPT_DIR/venv/bin/python"
+elif [ -x "$SCRIPT_DIR/.venv/bin/python" ]; then
+    PYTHON="$SCRIPT_DIR/.venv/bin/python"
+else
+    PYTHON="python3"
+fi
+
+case "$PYTHON" in
+    */*) [ -x "$PYTHON" ] || fail "Python interpreter is unavailable: $PYTHON" ;;
+    *) command -v "$PYTHON" >/dev/null 2>&1 || fail "Python interpreter is unavailable: $PYTHON" ;;
+esac
+[ -r "$UPLOADER" ] || fail "uploader script is unavailable: $UPLOADER"
+
+uploader_args=("$SYSEX_ID" "$PLUGIN_PATH")
+if [ -n "$PRESET_NAME" ]; then
+    uploader_args+=("$PRESET_NAME")
+fi
+
+# Keep Python/RtMidi in a child process. Some CoreMIDI failures abort native
+# RtMidi code instead of raising a Python exception, so retain control here to
+# report the failure clearly.
+"$PYTHON" "$UPLOADER" "${uploader_args[@]}"
+status=$?
+
+if [ "$status" -eq 134 ]; then
+    echo "ntpush: the MIDI backend aborted while opening the disting NT ports." >&2
+    echo "ntpush: check that the device is connected and that this process can access MIDI." >&2
+    exit 1
+elif [ "$status" -ne 0 ]; then
+    echo "ntpush: upload failed (uploader exit status $status)." >&2
+fi
+
+exit "$status"
