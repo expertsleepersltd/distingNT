@@ -52,7 +52,7 @@ For more information, please refer to <https://unlicense.org>
 ]] -- 
 
 -- Version
--- v2       -- 9 Aug 2025
+-- v3 [X]     -- 9 Aug 2026   UI enhancements
 
 --------------------------------------------------------------------------------
 -- Constants
@@ -69,6 +69,7 @@ local SLV_STATE = {"Idle", "Run"}
 local SIGNAL_EDGE = {"Falling", "Rising"}
 local RST_IN_TYPE = {"Trigger", "Run-Stop"}
 local RST_OUT_TYPE = {"at Run", "at Stop", "Both"}
+local UI_VIEW_TYPE = {"Expert", "Legacy"}
 
 local EOC_DURATION_OPT = {"50% Clock", "1 ms", "2 ms", "3 ms", "4 ms", "5 ms", "6 ms", "7 ms", "10 ms"}
 local EOC_DURATION = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 10.0}
@@ -86,6 +87,7 @@ local eoc_dur_index = 3    -- use 2 ms pulse duration
 local mu_missed_idx = 2
 local rst_in_type_idx = 2
 local rst_out_type_idx = 1
+local ui_view_type_idx = 1 -- Expert or Legacy (Mutable minimal) style UI
 
 local loop_bars = 4        -- default number of bars for sync latch boundaries
 local auto_fill_before_latch = true
@@ -116,6 +118,7 @@ local end_of_loop = false
 local reset_out = false   -- output sig
 local rst_at_start = true
 local rst_at_stop = true  -- only used with run_stop_type
+local legacy_ui = false
 
 local latch_arm = false
 local latch_on_next_tick = false
@@ -166,7 +169,8 @@ return {
                 {"End of Loop Pulse dur", EOC_DURATION_OPT, 4 },
                 {"Makeup Reset Clock Tick", AUTO_FILL_SWITCH, 2 },
                 {"Reset Input Type", RST_IN_TYPE, 1 },
-                {"Reset Out Behavior", RST_OUT_TYPE, 1}
+                {"Reset Out Behavior", RST_OUT_TYPE, 1},
+                {"UI View", UI_VIEW_TYPE, 1}
             }
         }
     end,
@@ -393,6 +397,13 @@ return {
            rst_at_stop = run_stop_type
         end
 
+        ui_view_type_idx = self.parameters[13]
+        if UI_VIEW_TYPE[ui_view_type_idx] == "Expert" then
+            legacy_ui = false
+        else   -- "Legacy"
+            legacy_ui = true
+        end
+
         eoc_dur_index  = self.parameters[9]
         pulse_duration = EOC_DURATION[eoc_dur_index] / 1000.0
 
@@ -474,6 +485,14 @@ return {
         local localTickCountup = PPQN_res * time_sig_num - tick_countdown
         local localBeat = math.floor(localTickCountup / PPQN_res) + 1
         local localTicks = localTickCountup % PPQN_res
+        
+        local localBoxWidth = 240 / loop_bars        
+        local localProgress = math.floor(localBoxWidth * localTickCountup / (PPQN_res * time_sig_num))
+
+        local localBoxColor = 7
+        local localBoxBlink = (tick_countdown / (PPQN_res/4) ) % 2
+        local local_B_idx = 0
+
         local arm_L_char = " "
         local arm_R_char = " "
         local fill_char = ":"
@@ -498,9 +517,15 @@ return {
         end
 
         local x = 95
-        local y = 25
-        drawText(15, 27, "Sync Latch")
-        y = y + 15
+        local y = 40  -- Legacy position
+
+        if legacy_ui then
+            drawText(15, 27, "Sync Latch")
+        else
+            drawTinyText(39, 26, "SYNC LATCH", 6, "centre")
+            y = 35
+        end
+        
         drawText(x,  y, arm_L_char)
         drawText(x+6,  y, ("%02d"):format(localBar))
         drawText(x+20, y, fill_char)
@@ -510,10 +535,34 @@ return {
         drawText(x+57, y, arm_R_char)
         drawText(x+65, y, play_char)
         
-        if script_debug then
-            drawText(x + 80, y+15, ("AF_ticks = %3d"):format(auto_fill_tick_count))
-            drawText(15, y+15, ("elapsed = %.2f ms of %.1f ms duration"):format(last_elapsed, pulse_duration*1000))
+        if not legacy_ui then
+            -- Exeprt Visual Graphics
+            y = 51
+            for local_B_idx = 0, (loop_bars-1) do
+                if local_B_idx == (localBar - 1) then
+                    localBoxColor = 15
+                    drawRectangle( 8 + local_B_idx * localBoxWidth + localProgress, y+2, 7 + (local_B_idx + 1) * localBoxWidth, 61, 3)
+                    drawTinyText( 9 + (localBoxWidth/2) + local_B_idx * localBoxWidth, y+9, ("%d"):format(localBar), 12, "centre")
+                else
+                    if local_B_idx < localBar then
+                        localBoxColor = 0
+                    else
+                        localBoxColor = 6
+                    end
+                    drawRectangle( 8 + local_B_idx * localBoxWidth, y+2, 7 + (local_B_idx + 1) * localBoxWidth, 61, localBoxColor/2+1)
+                    localBoxColor = 0
+                end
+            
+                if latch_arm and (localBar == loop_bars) and tick_countdown < (PPQN_res * (time_sig_num - 1)) then
+                    localBoxColor = localBoxColor * localBoxBlink
+                end
+                drawBox( 8 + local_B_idx * localBoxWidth, y, 7 + (local_B_idx + 1) * localBoxWidth, 63, localBoxColor )
+            end
+        
+            if script_debug then
+                drawText(x + 80, y+15, ("AF_ticks = %3d"):format(auto_fill_tick_count))
+                drawText(15, y+15, ("elapsed = %.2f ms of %.1f ms duration"):format(last_elapsed, pulse_duration*1000))
+            end
         end
-
     end
 }
