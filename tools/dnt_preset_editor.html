@@ -563,6 +563,12 @@ function processSlotCount( data ) {
 		numOutputBusses = data[2];
 		numAuxBusses = data[3];
 	}
+	else {
+		// use disting NT defaults
+		numInputBusses = 12;
+		numOutputBusses = 8;
+		numAuxBusses = 44;
+	}
 	routingInfo = [];
 	guids = [];
 	slotNames = [];
@@ -802,7 +808,11 @@ function buildRoutingInfo() {
 				cl = "routingA";
 			}
 		}
-		heading += "<th class='" + cl + "'>" + ch + "</th>";
+		heading += "<th class='" + cl + "'";
+		if ( numOutputBusses < 2 ) {
+			heading += "style='width:46px'";
+		}
+		heading += ">" + ch + "</th>";
 	}
 	heading += "</tr>";
 	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=" + numInputBusses + ">Inputs</th><th colspan=" + numOutputBusses + ">Outputs</th><th colspan=" + numAuxBusses + ">Aux</th></tr>";
