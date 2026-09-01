@@ -547,6 +547,9 @@ function processAlgorithmInfo( data ) {
 }
 
 var slotCount = 0;
+var numInputBusses = 12;
+var numOutputBusses = 8;
+var numAuxBusses = 44;
 var routingInfo = [];
 var guids = [];
 var slotNames = [];
@@ -554,6 +557,12 @@ var slotParamNames = [];
 
 function processSlotCount( data ) {
 	slotCount = data[0];
+	if ( data.length >= 4 ) {
+		// new format with bus counts
+		numInputBusses = data[1];
+		numOutputBusses = data[2];
+		numAuxBusses = data[3];
+	}
 	routingInfo = [];
 	guids = [];
 	slotNames = [];
@@ -708,7 +717,17 @@ function buildRoutingInfo() {
     localStorage.setItem( dntRoutingColour2Key, colour2 );
 
 	// follow signals from top to bottom
-	let signals = [ [1,1,1,1,1,1,1,1,1,1,1,1, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0] ];
+	let sigs = [];
+	for ( let i=0; i<numInputBusses; ++i ) {
+		sigs.push( 1 );
+	}
+	for ( let i=0; i<numOutputBusses; ++i ) {
+		sigs.push( 0 );
+	}
+	for ( let i=0; i<numAuxBusses; ++i ) {
+		sigs.push( 0 );
+	}
+	let signals = [ sigs ];
 	let numBusses = signals[0].length;
 	for ( let s=0; s<slotCount; ++s ) {
 		let r = routingInfo[ s ];
@@ -775,18 +794,18 @@ function buildRoutingInfo() {
 	for ( let i=0; i<numBusses; ++i ) {
 		let ch = 1 + i;
 		let cl = "routingI";
-		if ( ch > 12 ) {
-			ch -= 12;
+		if ( ch > numInputBusses ) {
+			ch -= numInputBusses;
 			cl = "routingO";
-			if ( ch > 8 ) {
-				ch -= 8;
+			if ( ch > numOutputBusses ) {
+				ch -= numOutputBusses;
 				cl = "routingA";
 			}
 		}
 		heading += "<th class='" + cl + "'>" + ch + "</th>";
 	}
 	heading += "</tr>";
-	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=12>Inputs</th><th colspan=8>Outputs</th><th colspan=44>Aux</th></tr>";
+	let heading2 = "<tr class='routing'><th colspan=4 /><th colspan=" + numInputBusses + ">Inputs</th><th colspan=" + numOutputBusses + ">Outputs</th><th colspan=" + numAuxBusses + ">Aux</th></tr>";
 	str += heading2;
 	str += heading;
 	let colours = [ "#ffffff", colour1, colour2, "#fcfcfc", darken( colour1 ), darken( colour2 ) ];
