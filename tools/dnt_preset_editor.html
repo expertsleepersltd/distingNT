@@ -230,6 +230,7 @@ Module display mode:
 <input id='spec3' type='number'></input>
 <button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
 <button id='loadPluginButton' onclick='loadPlugin()'>Load</button>
+<label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
 <p>
 <label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
 <label for="show_mapping_cv">Show CV mappings:</label>
@@ -240,11 +241,32 @@ Module display mode:
 <input id='show_mapping_i2c' type='checkbox' accesskey="2" onchange="toggleMappings('i2c')">
 <label for="show_pages">Show as:</label>
 <select id="show_pages" onchange='changePages()'><option value='false'>Flat list</option><option value='true'>Pages</option></select>
-<br>
-<label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
 <p>
 <h2 id='slot_algorithm_name'></h2>
 <label for="slot_name">Custom name:</label><input id='slot_name' type='text' onchange='send_slot_name()'>
+<label for="leftIndent">Left indent:</label><select id='leftIndent' onchange='send_style()'>
+<script>
+for ( let i=0; i<=15; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" )
+}
+</script>
+</select>
+<label for="rightIndent">Right indent:</label><select id='rightIndent' onchange='send_style()'>
+<script>
+for ( let i=0; i<=15; ++i ) {
+	document.write( "<option value=" + i + ">" + i + "</option>" )
+}
+</script>
+</select>
+<label for="lineAbove">Line above:</label><input id='lineAbove' type='checkbox' onchange='send_style()'>
+<label for="lineBelow">Line below:</label><input id='lineBelow' type='checkbox' onchange='send_style()'>
+<select id='bracket' onchange='send_style()'>
+<option value=0>No bracket</option>
+<option value=1>Open</option>
+<option value=2>Close</option>
+<option value=3>Line</option>
+<option value=4>Open & close</option>
+</select>
 <p>
 <button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
 <button onclick='setAllMIDIMapCh()' class='map_midi'>Set all MIDI channels to</button>
@@ -423,8 +445,9 @@ function processAlgorithm( slot, data ) {
 		}
 	}
 	let name = "";
+	let c = 4;
 	for ( let i = 0; i < 24; ++i ) {
-		let n = data[4+i];
+		let n = data[c++];
 		if ( n == 0 ) {
 			break;
 		}
@@ -435,7 +458,28 @@ function processAlgorithm( slot, data ) {
 	} else {
 		document.getElementById( "slot_name" ).value = name;
 	}
-
+	
+	let styleVersion = data[c++];
+	let leftIndent = 0;
+	let rightIndent = 0;
+	let lineAbove = 0;
+	let lineBelow = 0;
+	let bracket = 0;
+	if ( styleVersion == 1 ) {
+		leftIndent = data[c++];
+		rightIndent = data[c++];
+		lineAbove = data[c++];
+		lineBelow = data[c++];
+		bracket = data[c++];
+	}
+	if ( appMode == modeSlotEditor ) {
+		document.getElementById( "leftIndent" ).value = leftIndent;
+		document.getElementById( "rightIndent" ).value = rightIndent;
+		document.getElementById( "lineAbove" ).checked = lineAbove;
+		document.getElementById( "lineBelow" ).checked = lineBelow;
+		document.getElementById( "bracket" ).value = bracket;
+	}
+	
 	if ( slot == ( slotCount - 1 ) ) {
 		if ( appMode == modePerfPage ) {
 			let str = "";
@@ -1520,6 +1564,20 @@ function send_slot_name() {
 	arr.push( 0xF7 );
 	output.send( arr );
 	let dd = log( "sent slot name update to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function send_style() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let leftIndent = document.getElementById( "leftIndent" ).value;
+	let rightIndent = document.getElementById( "rightIndent" ).value;
+	let lineAbove = document.getElementById( "lineAbove" ).checked;
+	let lineBelow = document.getElementById( "lineBelow" ).checked;
+	let bracket = document.getElementById( "bracket" ).value;
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x54, slot, 1 /*version*/, leftIndent, rightIndent, lineAbove, lineBelow, bracket, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent style update to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
