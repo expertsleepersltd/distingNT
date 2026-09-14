@@ -64,6 +64,11 @@ inPortName = [name for name in mido.get_input_names() if "disting NT" in name][0
 outPort = mido.open_output( outPortName )
 inPort = mido.open_input( inPortName )
 
+# Give the MIDI backend time to finish activating the input callback before
+# sending the first request. This avoids losing an immediate response on some
+# Windows/RtMidi configurations.
+time.sleep( 0.1 )
+
 
 def addCheckSum( arr ):
 	sum = 0
