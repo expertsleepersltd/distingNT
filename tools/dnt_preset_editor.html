@@ -95,6 +95,25 @@ button.moveSlot {
 	width : 1em;
 	padding : 0;
 }
+span.mem1 {
+	background-color: #a0a0a0;
+	display: flex;
+	height: 10px;
+}
+span.mem2 {
+	background-color: #202020;
+	display: flex;
+	height: 10px;
+}
+span.mem3 {
+	background-color: #d0d0d0;
+	display: flex;
+	height: 10px;
+}
+div.memory_bars {
+	display: flex;
+	margin-top: 2px;
+}
 </style>
 
 <script>
@@ -223,14 +242,27 @@ Module display mode:
 <label for="algorithms_menu">Algorithms:</label>
 <select id="algorithms_menu" onchange='changeAlgorithm()'></select>
 <label id='spec1label' for="spec1"></label>
-<input id='spec1' type='number'></input>
+<input id='spec1' type='number' onchange='changeSpec()'></input>
 <label id='spec2label' for="spec2"></label>
-<input id='spec2' type='number'></input>
+<input id='spec2' type='number' onchange='changeSpec()'></input>
 <label id='spec3label' for="spec3"></label>
-<input id='spec3' type='number'></input>
+<input id='spec3' type='number' onchange='changeSpec()'></input>
 <button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
 <button id='loadPluginButton' onclick='loadPlugin()'>Load</button>
 <label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
+<br>
+<div class='memory_bars'>
+<span id='sram1' class='mem1'></span><span id='sram2' class='mem2'></span><span id='sram3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='dram1' class='mem1'></span><span id='dram2' class='mem2'></span><span id='dram3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='dtc1' class='mem1'></span><span id='dtc2' class='mem2'></span><span id='dtc3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='itc1' class='mem1'></span><span id='itc2' class='mem2'></span><span id='itc3' class='mem3'></span>
+</div>
 <p>
 <label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
 <label for="show_mapping_cv">Show CV mappings:</label>
@@ -678,6 +710,89 @@ function processPathsQuery( data ) {
 		}
 	}
 	confirm( msg );
+}
+
+function processMemoryQuery( data ) {
+	if ( !( data[0] & 1 ) ) {
+		// guid not found
+	}
+	if ( !( data[0] & 2 ) ) {
+		// plug-in not loaded
+	}
+	if ( data[0] == 3 ) {
+		let c = 1;
+		let total_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let total_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let total_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let total_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let current_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let current_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let current_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let current_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let required_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let required_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let required_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		let required_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
+		
+		document.getElementById( 'addAlgorithmButton' ).disabled = false;
+		
+		let w = 200.0;
+		let s1 = current_sram * w / total_sram;
+		let s2 = required_sram * w/ total_sram;
+		let s3 = w - s2 - s1;
+		document.getElementById( 'sram1' ).style.width = s1 + "px";
+		document.getElementById( 'sram2' ).style.width = s2 + "px";
+		if ( s3 < 0 ) {
+			s3 = 0;
+			document.getElementById( 'sram2' ).style.background = '#f03030';
+			document.getElementById( 'addAlgorithmButton' ).disabled = true;
+		} else {
+			document.getElementById( 'sram2' ).style.background = '';
+		}
+		document.getElementById( 'sram3' ).style.width = s3 + "px";
+		
+		s1 = current_dram * w / total_dram;
+		s2 = required_dram * w / total_dram;
+		s3 = w - s2 - s1;
+		document.getElementById( 'dram1' ).style.width = s1 + "px";
+		document.getElementById( 'dram2' ).style.width = s2 + "px";
+		if ( s3 < 0 ) {
+			s3 = 0;
+			document.getElementById( 'dram2' ).style.background = '#f03030';
+			document.getElementById( 'addAlgorithmButton' ).disabled = true;
+		} else {
+			document.getElementById( 'dram2' ).style.background = '';
+		}
+		document.getElementById( 'dram3' ).style.width = s3 + "px";
+		
+		s1 = current_dtc * w / total_dtc;
+		s2 = required_dtc * w / total_dtc;
+		s3 = w - s2 - s1;
+		document.getElementById( 'dtc1' ).style.width = s1 + "px";
+		document.getElementById( 'dtc2' ).style.width = s2 + "px";
+		if ( s3 < 0 ) {
+			s3 = 0;
+			document.getElementById( 'dtc2' ).style.background = '#f03030';
+			document.getElementById( 'addAlgorithmButton' ).disabled = true;
+		} else {
+			document.getElementById( 'dtc2' ).style.background = '';
+		}
+		document.getElementById( 'dtc3' ).style.width = s3 + "px";
+		
+		s1 = current_itc * w / total_itc;
+		s2 = required_itc * w / total_itc;
+		s3 = w - s2 - s1;
+		document.getElementById( 'itc1' ).style.width = s1 + "px";
+		document.getElementById( 'itc2' ).style.width = s2 + "px";
+		if ( s3 < 0 ) {
+			s3 = 0;
+			document.getElementById( 'itc2' ).style.background = '#f03030';
+			document.getElementById( 'addAlgorithmButton' ).disabled = true;
+		} else {
+			document.getElementById( 'itc2' ).style.background = '';
+		}
+		document.getElementById( 'itc3' ).style.width = s3 + "px";
+	}
 }
 
 const kPerfPageVersion = 1;
@@ -1322,6 +1437,10 @@ function extractShort( data ) {
 	var v = ( data[0] << 14 ) | ( data[1] << 7 ) | ( data[2] );
 	v = ( v << 16 ) >> 16;
 	return v;
+}
+
+function extractLong( data ) {
+	return ( data[0] << 28 ) | ( data[1] << 21 ) | ( data[2] << 14 ) | ( data[3] << 7 ) | ( data[4] );
 }
 
 function processParameterInfo( data ) {
@@ -1997,6 +2116,7 @@ function changeAlgorithm() {
 	}
 	let unloadedPlugin = factory[4][0] && !factory[4][1];
 	document.getElementById( 'loadPluginButton' ).disabled = !unloadedPlugin;
+	changeSpec();
 }
 
 function addAlgorithm() {
@@ -2028,6 +2148,24 @@ function loadPlugin() {
 	let dd = log( "sent load plug-in request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 	changeSlot();
+}
+
+function changeSpec() {
+	let index = document.getElementById( 'algorithms_menu' ).value;
+	let factory = factories[ index ];
+	let guid = factory[ 0 ];
+	let numSpecs = factory[ 1 ];
+	let specs = [ 0, 0, 0 ];
+	for ( let i=0; i<3; ++i ) {
+		if ( numSpecs > i ) {
+			specs[i] = document.getElementById( 'spec' + (i+1) ).value;
+		}
+	}
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x39, guid[0], guid[1], guid[2], guid[3], (specs[0]>>14)&3, (specs[0]>>7)&0x7f, specs[0]&0x7f, (specs[1]>>14)&3, (specs[1]>>7)&0x7f, specs[1]&0x7f, (specs[2]>>14)&3, (specs[2]>>7)&0x7f, specs[2]&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent memory query to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 function removeAlgorithm() {
@@ -2111,6 +2249,8 @@ function onMIDIMessage(message) {
 		// version string
 	    var str = String.fromCharCode.apply( null, data.slice( 7, -1 ) );
 		document.getElementById( "rxSysex" ).value += ( "\n-----\n" + str );
+	} else if ( data[6] == 0x39 ) {
+		processMemoryQuery( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x40 ) {
 		if ( ( appMode != modeSlotEditor ) || ( rxSlot == slot ) ) {
 			processAlgorithm( rxSlot, data.slice( 8, -1 ) );
