@@ -199,14 +199,6 @@ for ( let i=0; i<127; ++i ) {
 }
 </script>
 </select>
-<label for="slot">Slot: </label>
-<select id="slot" onchange='changeSlot()'>
-<script>
-for ( let i=0; i<40; ++i ) {
-	document.write( '<option value=' + i + '>' + (i+1) + '</option>' );
-}
-</script>
-</select>
 <label for="show_log">Log:</label><input id='show_log' type='checkbox' onchange='showLog()'>
 <label for="keep_log">Keep full log:</label><input id='keep_log' type='checkbox'>
 <label for="show_cpu">Show CPU:</label><input id='show_cpu' type='checkbox' onchange='showCPU()'>
@@ -232,6 +224,15 @@ Module display mode:
 
 <div id=slotEditor>
 
+<label for="slot">Slot: </label>
+<select id="slot" onchange='changeSlot()'>
+<script>
+for ( let i=0; i<40; ++i ) {
+	document.write( '<option value=' + i + '>' + (i+1) + '</option>' );
+}
+</script>
+</select>
+<button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
 <!--
 <button onclick='loadPreset()'>Load</button>
 <button onclick='newPreset()'>New</button>
@@ -239,31 +240,6 @@ Module display mode:
 <button onclick='savePreset(1)'>Save (safe)</button>
 <button onclick='savePreset(2)'>Save (force)</button>
 -->
-<label for="algorithms_menu">Algorithms:</label>
-<select id="algorithms_menu" onchange='changeAlgorithm()'></select>
-<label id='spec1label' for="spec1"></label>
-<input id='spec1' type='number' onchange='changeSpec()'></input>
-<label id='spec2label' for="spec2"></label>
-<input id='spec2' type='number' onchange='changeSpec()'></input>
-<label id='spec3label' for="spec3"></label>
-<input id='spec3' type='number' onchange='changeSpec()'></input>
-<button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
-<button id='loadPluginButton' onclick='loadPlugin()'>Load</button>
-<label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
-<br>
-<div class='memory_bars'>
-<span id='sram1' class='mem1'></span><span id='sram2' class='mem2'></span><span id='sram3' class='mem3'></span>
-</div>
-<div class='memory_bars'>
-<span id='dram1' class='mem1'></span><span id='dram2' class='mem2'></span><span id='dram3' class='mem3'></span>
-</div>
-<div class='memory_bars'>
-<span id='dtc1' class='mem1'></span><span id='dtc2' class='mem2'></span><span id='dtc3' class='mem3'></span>
-</div>
-<div class='memory_bars'>
-<span id='itc1' class='mem1'></span><span id='itc2' class='mem2'></span><span id='itc3' class='mem3'></span>
-</div>
-<p>
 <label for="auto_focus">Auto-focus:</label><input id='auto_focus' type='checkbox' checked accesskey="u">
 <label for="show_mapping_cv">Show CV mappings:</label>
 <input id='show_mapping_cv' type='checkbox' accesskey="c" onchange="toggleMappings('cv')">
@@ -300,7 +276,6 @@ for ( let i=0; i<=15; ++i ) {
 <option value=4>Open & close</option>
 </select>
 <p>
-<button id='removeAlgorithmButton' onclick='removeAlgorithm()'>Remove</button>
 <button onclick='setAllMIDIMapCh()' class='map_midi'>Set all MIDI channels to</button>
 <select class='map_midi' id='setAllMIDIMapCh_ch'>
 <script>
@@ -316,6 +291,32 @@ for ( let i=1; i<=16; ++i ) {
 </div> <!--slotEditor-->
 
 <div id=routingAnalysis>
+
+<label for="algorithms_menu">Algorithms:</label>
+<select id="algorithms_menu" onchange='changeAlgorithm()'></select>
+<label id='spec1label' for="spec1"></label>
+<input id='spec1' type='number' onchange='changeSpec()'></input>
+<label id='spec2label' for="spec2"></label>
+<input id='spec2' type='number' onchange='changeSpec()'></input>
+<label id='spec3label' for="spec3"></label>
+<input id='spec3' type='number' onchange='changeSpec()'></input>
+<button id='addAlgorithmButton' onclick='addAlgorithm()'>Add</button>
+<button id='loadPluginButton' onclick='loadPlugin()'>Load</button>
+<label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
+<br>
+<div class='memory_bars'>
+<span id='sram1' class='mem1'></span><span id='sram2' class='mem2'></span><span id='sram3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='dram1' class='mem1'></span><span id='dram2' class='mem2'></span><span id='dram3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='dtc1' class='mem1'></span><span id='dtc2' class='mem2'></span><span id='dtc3' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='itc1' class='mem1'></span><span id='itc2' class='mem2'></span><span id='itc3' class='mem3'></span>
+</div>
+<p>
 
 <label for="show_signals">Show signals:</label><input id='show_signals' type='checkbox' onchange="buildRoutingInfo()" checked>
 <label for="show_mappings">Show mappings:</label><input id='show_mappings' type='checkbox' onchange="buildRoutingInfo()" checked>
@@ -363,7 +364,7 @@ document.getElementById( 'routing_colour2' ).value = localStorage.getItem( dntRo
 const modeSlotEditor = 0;
 const modeRoutingAnalysis = 1;
 const modePerfPage = 2;
-var appMode = modeSlotEditor;
+var appMode = modeRoutingAnalysis;
 function showSlotEditor() {
 	appMode = modeSlotEditor;
 	document.getElementById( "routingAnalysis" ).style.display = "none";
@@ -385,7 +386,7 @@ function showPerfPage() {
 	document.getElementById( "routingAnalysis" ).style.display = "none";
 	document.getElementById( "perfPage" ).style.display = "inline";
 }
-document.getElementById( "routingAnalysis" ).style.display = "none";
+document.getElementById( "slotEditor" ).style.display = "none";
 document.getElementById( "perfPage" ).style.display = "none";
 
 const dntLogKey = "dntShowLog";
@@ -612,13 +613,6 @@ function processAlgorithmInfo( data ) {
 
 	if ( index == numAlgorithms-1 ) {
 		changeAlgorithm();
-
-		let slot = document.getElementById( 'slot' ).value;
-		let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
-		let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, slot, 0xF7 ];
-		output.send( arr );
-		let dd = log( "sent algorithm request to disting NT" );
-		dumpSysex( arr, "txSysex", dd+"\n" );
 	}
 }
 
@@ -2064,7 +2058,7 @@ function onMIDISuccess(midiAccess) {
       document.getElementById('slot').value = Number(slot) - 1;
     }
 
-    request();
+    requestRouting();
 }
 function onMIDIFailure(e) {
 	log( "midi access failure" );
@@ -2135,7 +2129,7 @@ function addAlgorithm() {
 	output.send( arr );
 	let dd = log( "sent add algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	changeSlot();
+	requestRouting();
 }
 
 function loadPlugin() {
@@ -2147,7 +2141,7 @@ function loadPlugin() {
 	output.send( arr );
 	let dd = log( "sent load plug-in request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
-	changeSlot();
+	requestRouting();
 }
 
 function changeSpec() {
@@ -2347,14 +2341,14 @@ function request() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
 	let slot = document.getElementById( 'slot' ).value;
 
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, 0xF7 ];
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x40, slot, 0xF7 ];
 	output.send( arr );
-	var dd = log( "sent algorithm names request to disting NT" );
+	var dd = log( "sent algorithm request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x41, 0xF7 ];
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x52, 0xF7 ];
 	output.send( arr );
-	var dd = log( "sent preset name request to disting NT" );
+	var dd = log( "sent algorithm page request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
 
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x48, 0xF7 ];
@@ -2375,11 +2369,6 @@ function request() {
 		dumpSysex( arr, "txSysex", dd+"\n" );
 	}
 
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x30, 0xF7 ];
-	output.send( arr );
-	var dd = log( "sent num algorithms request to disting NT" );
-	dumpSysex( arr, "txSysex", dd+"\n" );
-
 	mappingRefreshed = false;
 	if ( sendRTC ) {
 		sendRTC = false;
@@ -2396,6 +2385,18 @@ function request() {
 }
 function requestRouting() {
 	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x41, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent preset name request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+
+	// request num factories
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x30, 0xF7 ];
+	output.send( arr );
+	var dd = log( "sent num algorithms request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+
 	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x60, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent slot count request to disting NT" );
