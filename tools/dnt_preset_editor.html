@@ -276,6 +276,14 @@ for ( let i=0; i<=15; ++i ) {
 <option value=4>Open & close</option>
 </select>
 <p>
+<label id='respec1label' for="respec1"></label>
+<input id='respec1' type='number' onchange='changeReSpec()'></input>
+<label id='respec2label' for="respec2"></label>
+<input id='respec2' type='number' onchange='changeReSpec()'></input>
+<label id='respec3label' for="respec3"></label>
+<input id='respec3' type='number' onchange='changeReSpec()'></input>
+<button id='respecifyButton' onclick='respecify()'>Respecify</button>
+<p>
 <button onclick='setAllMIDIMapCh()' class='map_midi'>Set all MIDI channels to</button>
 <select class='map_midi' id='setAllMIDIMapCh_ch'>
 <script>
@@ -467,6 +475,8 @@ function getNextAlgForPerf() {
 	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
+var slotSpecs = [];
+
 function processAlgorithm( slot, data ) {
 	let guid = data.slice( 0, 4 );
 	let f = lookupGuid( guid );
@@ -511,6 +521,36 @@ function processAlgorithm( slot, data ) {
 		document.getElementById( "lineAbove" ).checked = lineAbove;
 		document.getElementById( "lineBelow" ).checked = lineBelow;
 		document.getElementById( "bracket" ).value = bracket;
+	}
+	
+	slotSpecs = [];
+	if ( data.length > c ) {
+		let numSpecs = data[c++];
+		for ( let i=0; i<numSpecs; ++i ) {
+			slotSpecs.push( extractShort( data.slice( c, c+3 ) ) );
+			c += 3;
+		}
+	}
+	if ( appMode == modeSlotEditor ) {
+		let button = document.getElementById( 'respecifyButton' );
+		button.style='display:none;';
+		button.disabled = true;
+		let factory = factories[ f ];
+		let numSpecs = factory[ 1 ];
+		for ( let i=0; i<3; ++i ) {
+			if ( numSpecs > i ) {
+				document.getElementById( 'respec' + (i+1) + 'label' ).innerHTML = factory[3][1+i] + ":";
+				let t = document.getElementById( 'respec' + (i+1) );
+				t.min = factory[2][i][0];
+				t.max = factory[2][i][1];
+				t.value = slotSpecs[i];
+				t.style = 'display:inline;';
+				button.style='display:inline;';
+			} else {
+				document.getElementById( 'respec' + (i+1) + 'label' ).innerHTML = "";
+				document.getElementById( 'respec' + (i+1) ).style='display:none;';
+			}
+		}
 	}
 	
 	if ( slot == ( slotCount - 1 ) ) {
@@ -1400,8 +1440,13 @@ function tableRowForParameter( i ) {
 }
 
 function initView() {
-  document.getElementById( "slot_algorithm_name" ).innerHTML = '<i>Add an algorithm...</i>';
-  document.getElementById( "parameters" ).innerHTML = '';
+	document.getElementById( "slot_algorithm_name" ).innerHTML = '<i>Add an algorithm...</i>';
+	document.getElementById( "parameters" ).innerHTML = '';
+	for ( let i=0; i<3; ++i ) {
+		document.getElementById( 'respec' + (i+1) + 'label' ).innerHTML = "";
+		document.getElementById( 'respec' + (i+1) ).style='display:none;';
+	}
+	document.getElementById( 'respecifyButton' ).style='display:none;';
 }
 
 nextMappingToGet = 0;
@@ -2160,6 +2205,34 @@ function changeSpec() {
 	output.send( arr );
 	let dd = log( "sent memory query to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function changeReSpec() {
+	document.getElementById( 'respecifyButton' ).disabled = true;
+	for ( let i=0; i<slotSpecs.length; ++i ) {
+		let v = document.getElementById( 'respec' + (i+1) ).value;
+		if ( v != slotSpecs[i] ) {
+			document.getElementById( 'respecifyButton' ).disabled = false;
+			break;
+		}
+	}
+}
+
+function respecify() {
+	let slot = document.getElementById( 'slot' ).value;
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x3A, slot, slotSpecs.length ];
+	for ( let i=0; i<slotSpecs.length; ++i ) {
+		let v = document.getElementById( 'respec' + (i+1) ).value;
+		arr.push( (v>>14)&3 );
+		arr.push( (v>>7)&0x7f );
+		arr.push( v&0x7f );
+	}
+	arr.push( 0xF7 );
+	output.send( arr );
+	let dd = log( "sent respecify algorithm request to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+	changeSlot();
 }
 
 function removeAlgorithm() {
