@@ -114,6 +114,9 @@ div.memory_bars {
 	display: flex;
 	margin-top: 2px;
 }
+div.respecifyBars {
+    vertical-align: top;
+}
 </style>
 
 <script>
@@ -211,8 +214,8 @@ for ( let i=0; i<127; ++i ) {
 <label class="hidden" for="rxSysex">SysEx received:</label><textarea rows=5 cols=45 name="text" id="rxSysex" accesskey="x" class="log"></textarea>
 </p>
 
-<button class="big" onclick="showSlotEditor()">Edit parameters</button>
-<button class="big" onclick="showRoutingAnalysis()">Show routing</button>
+<button class="big" onclick="showSlotEditor()">Parameters</button>
+<button class="big" onclick="showRoutingAnalysis()">Overview</button>
 <button class="big" onclick="showPerfPage()">Performance Page</button>
 Module display mode:
 <button onclick="setDisplayMode(0)">Parameters</button>
@@ -251,6 +254,7 @@ for ( let i=0; i<40; ++i ) {
 <select id="show_pages" onchange='changePages()'><option value='false'>Flat list</option><option value='true'>Pages</option></select>
 <p>
 <h2 id='slot_algorithm_name'></h2>
+<p>
 <label for="slot_name">Custom name:</label><input id='slot_name' type='text' onchange='send_slot_name()'>
 <label for="leftIndent">Left indent:</label><select id='leftIndent' onchange='send_style()'>
 <script>
@@ -275,7 +279,8 @@ for ( let i=0; i<=15; ++i ) {
 <option value=3>Line</option>
 <option value=4>Open & close</option>
 </select>
-<p>
+</p>
+
 <label id='respec1label' for="respec1"></label>
 <input id='respec1' type='number' onchange='changeReSpec()'></input>
 <label id='respec2label' for="respec2"></label>
@@ -283,6 +288,21 @@ for ( let i=0; i<=15; ++i ) {
 <label id='respec3label' for="respec3"></label>
 <input id='respec3' type='number' onchange='changeReSpec()'></input>
 <button id='respecifyButton' onclick='respecify()'>Respecify</button>
+<div id='respecifyBars' class='respecifyBars'>
+<div class='memory_bars'>
+<span id='remem11' class='mem1'></span><span id='remem12' class='mem2'></span><span id='remem13' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='remem21' class='mem1'></span><span id='remem22' class='mem2'></span><span id='remem23' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='remem31' class='mem1'></span><span id='remem32' class='mem2'></span><span id='remem33' class='mem3'></span>
+</div>
+<div class='memory_bars'>
+<span id='remem41' class='mem1'></span><span id='remem42' class='mem2'></span><span id='remem43' class='mem3'></span>
+</div>
+</div>
+
 <p>
 <button onclick='setAllMIDIMapCh()' class='map_midi'>Set all MIDI channels to</button>
 <select class='map_midi' id='setAllMIDIMapCh_ch'>
@@ -313,16 +333,16 @@ for ( let i=1; i<=16; ++i ) {
 <label for="preset_name">Preset name:</label><input id='preset_name' accesskey='p' type='text' onchange='send_preset_name()'>
 <br>
 <div class='memory_bars'>
-<span id='sram1' class='mem1'></span><span id='sram2' class='mem2'></span><span id='sram3' class='mem3'></span>
+<span id='mem11' class='mem1'></span><span id='mem12' class='mem2'></span><span id='mem13' class='mem3'></span>
 </div>
 <div class='memory_bars'>
-<span id='dram1' class='mem1'></span><span id='dram2' class='mem2'></span><span id='dram3' class='mem3'></span>
+<span id='mem21' class='mem1'></span><span id='mem22' class='mem2'></span><span id='mem23' class='mem3'></span>
 </div>
 <div class='memory_bars'>
-<span id='dtc1' class='mem1'></span><span id='dtc2' class='mem2'></span><span id='dtc3' class='mem3'></span>
+<span id='mem31' class='mem1'></span><span id='mem32' class='mem2'></span><span id='mem33' class='mem3'></span>
 </div>
 <div class='memory_bars'>
-<span id='itc1' class='mem1'></span><span id='itc2' class='mem2'></span><span id='itc3' class='mem3'></span>
+<span id='mem41' class='mem1'></span><span id='mem42' class='mem2'></span><span id='mem43' class='mem3'></span>
 </div>
 <p>
 
@@ -376,7 +396,7 @@ var appMode = modeRoutingAnalysis;
 function showSlotEditor() {
 	appMode = modeSlotEditor;
 	document.getElementById( "routingAnalysis" ).style.display = "none";
-	request();
+	changeSlot();
 	document.getElementById( "slotEditor" ).style.display = "inline";
 	document.getElementById( "perfPage" ).style.display = "none";
 }
@@ -476,6 +496,7 @@ function getNextAlgForPerf() {
 }
 
 var slotSpecs = [];
+var slotGUID = 0;
 
 function processAlgorithm( slot, data ) {
 	let guid = data.slice( 0, 4 );
@@ -523,6 +544,7 @@ function processAlgorithm( slot, data ) {
 		document.getElementById( "bracket" ).value = bracket;
 	}
 	
+	slotGUID = guid;
 	slotSpecs = [];
 	if ( data.length > c ) {
 		let numSpecs = data[c++];
@@ -755,77 +777,61 @@ function processMemoryQuery( data ) {
 	}
 	if ( data[0] == 3 ) {
 		let c = 1;
-		let total_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let total_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let total_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let total_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let current_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let current_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let current_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let current_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let required_sram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let required_dram = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let required_dtc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		let required_itc = extractLong( data.slice( c, c+5 ) ); c += 5;
-		
-		document.getElementById( 'addAlgorithmButton' ).disabled = false;
-		
-		let w = 200.0;
-		let s1 = current_sram * w / total_sram;
-		let s2 = required_sram * w/ total_sram;
-		let s3 = w - s2 - s1;
-		document.getElementById( 'sram1' ).style.width = s1 + "px";
-		document.getElementById( 'sram2' ).style.width = s2 + "px";
-		if ( s3 < 0 ) {
-			s3 = 0;
-			document.getElementById( 'sram2' ).style.background = '#f03030';
-			document.getElementById( 'addAlgorithmButton' ).disabled = true;
-		} else {
-			document.getElementById( 'sram2' ).style.background = '';
+		// total, current, required, (optional) required
+		let mem = [];
+		let rows = 3;
+		if ( data.length > 1+3*4*5 ) {
+			rows = 4;
 		}
-		document.getElementById( 'sram3' ).style.width = s3 + "px";
-		
-		s1 = current_dram * w / total_dram;
-		s2 = required_dram * w / total_dram;
-		s3 = w - s2 - s1;
-		document.getElementById( 'dram1' ).style.width = s1 + "px";
-		document.getElementById( 'dram2' ).style.width = s2 + "px";
-		if ( s3 < 0 ) {
-			s3 = 0;
-			document.getElementById( 'dram2' ).style.background = '#f03030';
-			document.getElementById( 'addAlgorithmButton' ).disabled = true;
-		} else {
-			document.getElementById( 'dram2' ).style.background = '';
+		for ( let i=0; i<rows; ++i ) {
+			// sram, dram, dtc, itc
+			let row = [];
+			for ( let j=0; j<4; ++j ) {
+				row.push( extractLong( data.slice( c, c+5 ) ) );
+				c += 5;
+			}
+			mem.push( row );
 		}
-		document.getElementById( 'dram3' ).style.width = s3 + "px";
 		
-		s1 = current_dtc * w / total_dtc;
-		s2 = required_dtc * w / total_dtc;
-		s3 = w - s2 - s1;
-		document.getElementById( 'dtc1' ).style.width = s1 + "px";
-		document.getElementById( 'dtc2' ).style.width = s2 + "px";
-		if ( s3 < 0 ) {
-			s3 = 0;
-			document.getElementById( 'dtc2' ).style.background = '#f03030';
-			document.getElementById( 'addAlgorithmButton' ).disabled = true;
-		} else {
-			document.getElementById( 'dtc2' ).style.background = '';
+		if ( appMode == modeSlotEditor ) {
+			let w = 200.0;
+			for ( let j=0; j<4; ++j ) {
+				let m = 'remem' + (1+j);
+				mem[1][j] -= mem[2][j];
+				let s1 = mem[1][j] * w / mem[0][j];
+				let s2 = mem[3][j] * w / mem[0][j];
+				let s3 = w - s2 - s1;
+				document.getElementById( m + '1' ).style.width = s1 + "px";
+				document.getElementById( m + '2' ).style.width = s2 + "px";
+				if ( s3 < 0 ) {
+					s3 = 0;
+					document.getElementById( m + '2' ).style.background = '#f03030';
+					document.getElementById( 'respecifyButton' ).disabled = true;
+				} else {
+					document.getElementById( m + '2' ).style.background = '';
+				}
+				document.getElementById( m + '3' ).style.width = s3 + "px";
+			}
+		} else if ( appMode == modeRoutingAnalysis ) {
+			document.getElementById( 'addAlgorithmButton' ).disabled = false;
+			let w = 200.0;
+			for ( let j=0; j<4; ++j ) {
+				let m = 'mem' + (1+j);
+				let s1 = mem[1][j] * w / mem[0][j];
+				let s2 = mem[2][j] * w / mem[0][j];
+				let s3 = w - s2 - s1;
+				document.getElementById( m + '1' ).style.width = s1 + "px";
+				document.getElementById( m + '2' ).style.width = s2 + "px";
+				if ( s3 < 0 ) {
+					s3 = 0;
+					document.getElementById( m + '2' ).style.background = '#f03030';
+					document.getElementById( 'addAlgorithmButton' ).disabled = true;
+				} else {
+					document.getElementById( m + '2' ).style.background = '';
+				}
+				document.getElementById( m + '3' ).style.width = s3 + "px";
+			}
 		}
-		document.getElementById( 'dtc3' ).style.width = s3 + "px";
-		
-		s1 = current_itc * w / total_itc;
-		s2 = required_itc * w / total_itc;
-		s3 = w - s2 - s1;
-		document.getElementById( 'itc1' ).style.width = s1 + "px";
-		document.getElementById( 'itc2' ).style.width = s2 + "px";
-		if ( s3 < 0 ) {
-			s3 = 0;
-			document.getElementById( 'itc2' ).style.background = '#f03030';
-			document.getElementById( 'addAlgorithmButton' ).disabled = true;
-		} else {
-			document.getElementById( 'itc2' ).style.background = '';
-		}
-		document.getElementById( 'itc3' ).style.width = s3 + "px";
 	}
 }
 
@@ -1447,6 +1453,7 @@ function initView() {
 		document.getElementById( 'respec' + (i+1) ).style='display:none;';
 	}
 	document.getElementById( 'respecifyButton' ).style='display:none;';
+	document.getElementById( 'respecifyBars' ).style='display:none;';
 }
 
 nextMappingToGet = 0;
@@ -2094,7 +2101,6 @@ function onMIDISuccess(midiAccess) {
 
 	log( "midi access granted" );
     status("OK");
-    initView();
 	updateCPUVisibility();
 
     // Set the slot number from the query string
@@ -2209,13 +2215,23 @@ function changeSpec() {
 
 function changeReSpec() {
 	document.getElementById( 'respecifyButton' ).disabled = true;
+	document.getElementById( 'respecifyBars' ).style='display:none;';
+	let oldSpecs = [ 0, 0, 0 ];
+	let newSpecs = [ 0, 0, 0 ];
 	for ( let i=0; i<slotSpecs.length; ++i ) {
 		let v = document.getElementById( 'respec' + (i+1) ).value;
+		newSpecs[i] = v;
+		oldSpecs[i] = slotSpecs[i];
 		if ( v != slotSpecs[i] ) {
 			document.getElementById( 'respecifyButton' ).disabled = false;
-			break;
+			document.getElementById( 'respecifyBars' ).style='display:inline-block;';
 		}
 	}
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x39, slotGUID[0], slotGUID[1], slotGUID[2], slotGUID[3], (oldSpecs[0]>>14)&3, (oldSpecs[0]>>7)&0x7f, oldSpecs[0]&0x7f, (oldSpecs[1]>>14)&3, (oldSpecs[1]>>7)&0x7f, oldSpecs[1]&0x7f, (oldSpecs[2]>>14)&3, (oldSpecs[2]>>7)&0x7f, oldSpecs[2]&0x7f, (newSpecs[0]>>14)&3, (newSpecs[0]>>7)&0x7f, newSpecs[0]&0x7f, (newSpecs[1]>>14)&3, (newSpecs[1]>>7)&0x7f, newSpecs[1]&0x7f, (newSpecs[2]>>14)&3, (newSpecs[2]>>7)&0x7f, newSpecs[2]&0x7f, 0xF7 ];
+	output.send( arr );
+	let dd = log( "sent memory query to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
 }
 
 function respecify() {
