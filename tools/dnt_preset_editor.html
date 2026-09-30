@@ -971,8 +971,8 @@ function buildRoutingInfo() {
 	// strip signals that go nowhere
 	let showSignals = document.getElementById( 'show_signals' ).checked;
 	for ( let i=0; i<numBusses; ++i ) {
-		if ( showSignals && ( i == 12 ) ) {
-			i = 20;
+		if ( showSignals && ( i == numInputBusses ) ) {
+			i = numInputBusses+numOutputBusses;
 		}
 		let hasInput = false;
 		for ( let s=slotCount; s>=0; s-- ) {
@@ -1028,10 +1028,10 @@ function buildRoutingInfo() {
 		str += "<tr class='routing'><td colspan=3 /><td />";
 		for ( let i=0; i<numBusses; ++i ) {
 			let ch = 1 + i;
-			if ( ch > 12 ) {
-				ch -= 12;
-				if ( ch > 8 ) {
-					ch -= 8;
+			if ( ch > numInputBusses ) {
+				ch -= numInputBusses;
+				if ( ch > numOutputBusses ) {
+					ch -= numOutputBusses;
 				}
 			}
 			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
@@ -1048,10 +1048,10 @@ function buildRoutingInfo() {
 		let used = r[0] | r[5] | outputMask;
 		for ( let i=0; i<numBusses; ++i ) {
 			let ch = 1 + i;
-			if ( ch > 12 ) {
-				ch -= 12;
-				if ( ch > 8 ) {
-					ch -= 8;
+			if ( ch > numInputBusses ) {
+				ch -= numInputBusses;
+				if ( ch > numOutputBusses ) {
+					ch -= numOutputBusses;
 				}
 			}
 			let bi = BigInt(i);
@@ -1064,10 +1064,10 @@ function buildRoutingInfo() {
 		str += "<tr class='routing'><td colspan=3 /><td />";
 		for ( let i=0; i<numBusses; ++i ) {
 			let ch = 1 + i;
-			if ( ch > 12 ) {
-				ch -= 12;
-				if ( ch > 8 ) {
-					ch -= 8;
+			if ( ch > numInputBusses ) {
+				ch -= numInputBusses;
+				if ( ch > numOutputBusses ) {
+					ch -= numOutputBusses;
 				}
 			}
 			let sty = "background-color:" + colours[ row[i] + 3*(i&1) ];
