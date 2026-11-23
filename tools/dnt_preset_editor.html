@@ -117,6 +117,22 @@ div.memory_bars {
 div.respecifyBars {
     vertical-align: top;
 }
+div.setting {
+	margin: 3px 0;
+}
+label.setting {
+	display: inline-block;
+	width: 18em;
+}
+span.setting_note {
+	font-size: 80%;
+	color: #606060;
+}
+table.setting_bits td {
+	font-size: 80%;
+	text-align: center;
+	padding: 0 2px;
+}
 </style>
 
 <script>
@@ -217,6 +233,7 @@ for ( let i=0; i<127; ++i ) {
 <button class="big" onclick="showSlotEditor()">Parameters</button>
 <button class="big" onclick="showRoutingAnalysis()">Overview</button>
 <button class="big" onclick="showPerfPage()">Performance Page</button>
+<button class="big" onclick="showSettings()">Settings</button>
 Module display mode:
 <button onclick="setDisplayMode(0)">Parameters</button>
 <button onclick="setDisplayMode(1)">Algorithm UI</button>
@@ -376,6 +393,18 @@ for ( let i=0; i<kNumPerfPageItems; ++i ) {
 
 </div> <!--perfPage-->
 
+<div id=settingsPage>
+
+<button id='settings_commit' onclick='settingsCommit()' disabled>Commit to flash</button>
+<button id='settings_revert' onclick='settingsRevert()' disabled>Revert to saved</button>
+<label for="settings_autocommit">Auto-commit:</label><input id='settings_autocommit' type='checkbox' onchange='settingsAutoCommitChanged()'>
+<button onclick='settingsFactoryReset()'>Factory reset</button>
+<span id='settings_status'></span>
+<p>
+<div id='settingsContent'></div>
+
+</div> <!--settingsPage-->
+
 <script>
 const dntRoutingColour1Key = "dntRoutingColour1";
 const dntRoutingColour2Key = "dntRoutingColour2";
@@ -392,6 +421,7 @@ document.getElementById( 'routing_colour2' ).value = localStorage.getItem( dntRo
 const modeSlotEditor = 0;
 const modeRoutingAnalysis = 1;
 const modePerfPage = 2;
+const modeSettings = 3;
 var appMode = modeRoutingAnalysis;
 function showSlotEditor() {
 	appMode = modeSlotEditor;
@@ -399,6 +429,7 @@ function showSlotEditor() {
 	changeSlot();
 	document.getElementById( "slotEditor" ).style.display = "inline";
 	document.getElementById( "perfPage" ).style.display = "none";
+	document.getElementById( "settingsPage" ).style.display = "none";
 }
 function showRoutingAnalysis() {
 	appMode = modeRoutingAnalysis;
@@ -406,6 +437,7 @@ function showRoutingAnalysis() {
 	requestRouting();
 	document.getElementById( "routingAnalysis" ).style.display = "inline";
 	document.getElementById( "perfPage" ).style.display = "none";
+	document.getElementById( "settingsPage" ).style.display = "none";
 }
 function showPerfPage() {
 	appMode = modePerfPage;
@@ -413,9 +445,393 @@ function showPerfPage() {
 	requestRouting();
 	document.getElementById( "routingAnalysis" ).style.display = "none";
 	document.getElementById( "perfPage" ).style.display = "inline";
+	document.getElementById( "settingsPage" ).style.display = "none";
+}
+function showSettings() {
+	appMode = modeSettings;
+	document.getElementById( "slotEditor" ).style.display = "none";
+	document.getElementById( "routingAnalysis" ).style.display = "none";
+	document.getElementById( "perfPage" ).style.display = "none";
+	document.getElementById( "settingsPage" ).style.display = "inline";
+	requestSettings();
 }
 document.getElementById( "slotEditor" ).style.display = "none";
 document.getElementById( "perfPage" ).style.display = "none";
+document.getElementById( "settingsPage" ).style.display = "none";
+
+// Settings page
+
+const kSettingTypeName = 4;
+const kSettingTypePath = 5;
+const kSettingTypeBits64 = 6;
+const kSettingUnitEnum = 1;
+const kSettingUnitHasStrings = 16;
+const kSettingUnitString = 18;
+const kSettingFlagRestartsEngine = 1;
+const kSettingFlagNeedsReboot = 2;
+const kSettingFlagReadOnly = 4;
+const kSettingsAutoCommitDelay = 2000;
+
+var settingGroups = [];			// by group ID: { name, children: [ { isGroup, id } ] }
+var settingInfo = [];			// by setting ID
+var settingParent = [];			// group ID of each setting
+var settingIdsToGet = [];		// settings still to request info for, in menu order
+var settingsPending = new Set();	// engine settings changed here but not yet applied
+var settingsAutoCommitTimer = null;
+
+// whether settings have been changed from here since they were last committed, reverted, or reset
+// (kept across a refresh, because the module still has the changes)
+function settingsSetUncommitted( uncommitted ) {
+	document.getElementById( 'settings_commit' ).disabled = !uncommitted;
+	document.getElementById( 'settings_revert' ).disabled = !uncommitted;
+	if ( !uncommitted ) {
+		clearTimeout( settingsAutoCommitTimer );
+		settingsAutoCommitTimer = null;
+	}
+}
+
+const dntSettingsAutoCommitKey = "dntSettingsAutoCommit";
+
+function settingsAutoCommitChanged() {
+    localStorage.setItem( dntSettingsAutoCommitKey, document.getElementById( "settings_autocommit" ).checked );
+}
+
+if ( !localStorage.getItem( dntSettingsAutoCommitKey ) ) {
+    localStorage.setItem( dntSettingsAutoCommitKey, false );
+}
+document.getElementById( 'settings_autocommit' ).checked = ( localStorage.getItem( dntSettingsAutoCommitKey ) != 'false' );
+
+function sendSettingsSysEx( arr, what ) {
+	let output = midi.outputs.get( document.getElementById( "midioutput" ).value );
+	output.send( arr );
+	let dd = log( "sent " + what + " to disting NT" );
+	dumpSysex( arr, "txSysex", dd+"\n" );
+}
+
+function settingsEscape( s ) {
+	return s.replace( /&/g, "&amp;" ).replace( /</g, "&lt;" );
+}
+
+// returns the string starting at data[c], and the index after its terminating zero
+function settingsReadString( data, c ) {
+	let s = "";
+	while ( ( c < data.length ) && ( data[c] != 0 ) ) {
+		s += String.fromCharCode( data[c++] );
+	}
+	return [ s, c+1 ];
+}
+
+function settingsSetStatus( s ) {
+	document.getElementById( 'settings_status' ).innerHTML = s;
+}
+
+function requestSettings() {
+	settingGroups = [];
+	settingInfo = [];
+	settingParent = [];
+	settingIdsToGet = [];
+	settingsPending.clear();
+	document.getElementById( 'settingsContent' ).innerHTML = "";
+	settingsSetStatus( "" );
+	if ( unitStrings.length == 0 ) {
+		sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x48, 0xF7 ], "unit strings request" );
+	}
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x63, 0xF7 ], "settings groups request" );
+}
+
+function buildSettingsGroupHtml( g ) {
+	let children = settingGroups[g].children;
+	// a group's Apply button goes after its last setting, before any subgroups that follow
+	let lastSetting = -1;
+	for ( let i=0; i<children.length; ++i ) {
+		if ( !children[i].isGroup ) {
+			lastSetting = i;
+		}
+	}
+	let h = "";
+	for ( let i=0; i<children.length; ++i ) {
+		let child = children[i];
+		if ( child.isGroup ) {
+			h += "<fieldset><legend>" + settingsEscape( settingGroups[ child.id ].name ) + "</legend>";
+			h += buildSettingsGroupHtml( child.id );
+			h += "</fieldset>";
+		} else {
+			settingParent[ child.id ] = g;
+			settingIdsToGet.push( child.id );
+			h += "<div class='setting' id='setting" + child.id + "'></div>";
+		}
+		if ( i == lastSetting ) {
+			h += "<button id='sg" + g + "_apply' style='display:none' disabled onclick='settingsApply(" + g + ")'>Apply</button>";
+		}
+	}
+	return h;
+}
+
+// "a", "a and b", or "a, b, and c"
+function settingsJoinNames( names ) {
+	if ( names.length <= 2 ) {
+		return names.join( " and " );
+	}
+	return names.slice( 0, -1 ).join( ", " ) + ", and " + names[ names.length-1 ];
+}
+
+// shows a group's Apply button, labelled with the settings it applies
+function updateSettingsApplyButton( g ) {
+	let apply = document.getElementById( "sg" + g + "_apply" );
+	if ( !apply ) {
+		return;
+	}
+	let names = [];
+	for ( let child of settingGroups[g].children ) {
+		let info = settingInfo[ child.id ];
+		if ( !child.isGroup && info && ( info.flags & kSettingFlagRestartsEngine ) ) {
+			names.push( info.name.toLowerCase() );
+		}
+	}
+	apply.innerHTML = "Apply " + settingsEscape( settingsJoinNames( names ) );
+	apply.style.display = "inline";
+	let pending = false;
+	for ( let id of settingsPending ) {
+		if ( settingParent[id] == g ) {
+			pending = true;
+		}
+	}
+	apply.disabled = !pending;
+}
+
+function processSettingGroups( data ) {
+	let version = data[0];
+	if ( version != 1 ) {
+		settingsSetStatus( "Unsupported settings protocol version " + version );
+		return;
+	}
+	let numGroups = data[4];
+	let c = 5;
+	for ( let i=0; i<numGroups; ++i ) {
+		let id = data[c++];
+		let name;
+		[ name, c ] = settingsReadString( data, c );
+		let num = data[c++];
+		let children = [];
+		for ( let j=0; j<num; ++j ) {
+			let isGroup = ( data[c++] == 1 );
+			children.push( { isGroup: isGroup, id: data[c++] } );
+		}
+		settingGroups[id] = { name: name, children: children };
+	}
+	// group 0 is the root of the menu
+	document.getElementById( 'settingsContent' ).innerHTML = buildSettingsGroupHtml( 0 );
+	setTimeout( requestNextSettingInfo, 5 );
+}
+
+function requestNextSettingInfo() {
+	if ( settingIdsToGet.length == 0 ) {
+		return;
+	}
+	let id = settingIdsToGet.shift();
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x64, (id>>14)&3, (id>>7)&0x7f, id&0x7f, 0xF7 ], "setting info request" );
+}
+
+function requestSettingValue( id ) {
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x65, (id>>14)&3, (id>>7)&0x7f, id&0x7f, 0xF7 ], "setting value request" );
+}
+
+function processSettingInfo( data ) {
+	let id = extractShort( data.slice( 0, 3 ) );
+	let info = {
+		min: extractShort( data.slice( 3, 6 ) ),
+		max: extractShort( data.slice( 6, 9 ) ),
+		def: extractShort( data.slice( 9, 12 ) ),
+		type: data[12],
+		unit: data[13],
+		flags: data[14],
+		maxLen: extractShort( data.slice( 15, 18 ) ),
+		enums: [],
+	};
+	let c;
+	[ info.name, c ] = settingsReadString( data, 18 );
+	if ( info.unit == kSettingUnitEnum ) {
+		let num = data[c++];
+		for ( let i=0; i<num; ++i ) {
+			let s;
+			[ s, c ] = settingsReadString( data, c );
+			info.enums.push( s );
+		}
+	}
+	// an Off/On or No/Yes enum is shown as a checkbox
+	info.isToggle = ( info.unit == kSettingUnitEnum ) && ( info.enums.length == 2 ) &&
+		( ( ( info.enums[0] == "Off" ) && ( info.enums[1] == "On" ) ) || ( ( info.enums[0] == "No" ) && ( info.enums[1] == "Yes" ) ) );
+	settingInfo[id] = info;
+	renderSetting( id );
+	setTimeout( requestSettingValue, 5, id );
+	setTimeout( requestNextSettingInfo, 10 );
+}
+
+function renderSetting( id ) {
+	let info = settingInfo[id];
+	let e = document.getElementById( "setting" + id );
+	if ( !e ) {
+		return;
+	}
+	let sid = "sv" + id;
+	let h = "<label class='setting' for='" + sid + "'>" + settingsEscape( info.name ) + "</label>";
+	if ( info.type == kSettingTypeBits64 ) {
+		h += "<table class='setting_bits'>";
+		for ( let r=0; r<4; ++r ) {
+			h += "<tr>";
+			for ( let b=r*16; b<(r+1)*16; ++b ) {
+				h += "<td>" + (b+1) + "<br><input type='checkbox' id='" + sid + "_b" + b + "' onchange='settingChangedHere(" + id + ")'></td>";
+			}
+			h += "</tr>";
+		}
+		h += "</table>";
+	} else if ( info.type == kSettingTypePath ) {
+		h += "<input type='text' size=40 id='" + sid + "' readonly>";
+	} else if ( info.type == kSettingTypeName ) {
+		h += "<input type='text' id='" + sid + "' maxlength=" + info.maxLen + " onchange='settingChangedHere(" + id + ")'>";
+	} else if ( info.isToggle ) {
+		h += "<input type='checkbox' id='" + sid + "' onchange='settingChangedHere(" + id + ")'>";
+		h += " <span class='setting_note'>(default: " + settingsEscape( info.enums[ info.def ] ) + ")</span>";
+	} else if ( info.unit == kSettingUnitEnum ) {
+		h += "<select id='" + sid + "' onchange='settingChangedHere(" + id + ")'>";
+		for ( let i=0; i<info.enums.length; ++i ) {
+			h += "<option value=" + i + ">" + settingsEscape( info.enums[i] ) + "</option>";
+		}
+		h += "</select>";
+		h += " <span class='setting_note'>(default: " + settingsEscape( info.enums[ info.def ] ) + ")</span>";
+	} else {
+		h += "<input type='number' class='param_v' id='" + sid + "' min=" + info.min + " max=" + info.max + " onchange='settingChangedHere(" + id + ")'>";
+		if ( ( info.unit > kSettingUnitEnum ) && ( info.unit != kSettingUnitHasStrings ) && ( info.unit != kSettingUnitString ) && unitStrings[ info.unit-1 ] ) {
+			h += " " + settingsEscape( unitStrings[ info.unit-1 ] );
+		}
+		h += " <span id='" + sid + "_str'></span>";
+		h += " <span class='setting_note'>(" + info.min + " to " + info.max + ", default: " + info.def + ")</span>";
+	}
+	if ( info.flags & kSettingFlagNeedsReboot ) {
+		h += " <span class='setting_note'>takes effect after a reboot</span>";
+	}
+	if ( info.flags & kSettingFlagRestartsEngine ) {
+		h += " <span class='setting_note'>restarts the audio engine when applied</span>";
+	}
+	e.innerHTML = h;
+	if ( info.flags & kSettingFlagRestartsEngine ) {
+		updateSettingsApplyButton( settingParent[id] );
+	}
+}
+
+function processSettingValue( data ) {
+	let id = extractShort( data.slice( 0, 3 ) );
+	let info = settingInfo[id];
+	if ( !info ) {
+		return;
+	}
+	let sid = "sv" + id;
+	if ( ( info.type == kSettingTypeName ) || ( info.type == kSettingTypePath ) ) {
+		let [ s ] = settingsReadString( data, 3 );
+		document.getElementById( sid ).value = ( info.type == kSettingTypeName ) ? s.trimEnd() : s;
+	} else if ( info.type == kSettingTypeBits64 ) {
+		let v = 0n;
+		for ( let i=0; i<10; ++i ) {
+			v |= BigInt( data[3+i] ) << BigInt( 7*i );
+		}
+		for ( let b=0; b<64; ++b ) {
+			document.getElementById( sid + "_b" + b ).checked = ( ( v >> BigInt( b ) ) & 1n ) != 0n;
+		}
+	} else {
+		let v = extractShort( data.slice( 3, 6 ) );
+		let [ s ] = settingsReadString( data, 6 );
+		if ( info.isToggle ) {
+			document.getElementById( sid ).checked = ( v != 0 );
+		} else {
+			document.getElementById( sid ).value = v;
+		}
+		let str = document.getElementById( sid + "_str" );
+		if ( str ) {
+			str.innerHTML = ( info.unit == kSettingUnitHasStrings ) ? settingsEscape( s ) : "";
+		}
+	}
+}
+
+function sendSettingValue( id ) {
+	let info = settingInfo[id];
+	let sid = "sv" + id;
+	let arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x66, (id>>14)&3, (id>>7)&0x7f, id&0x7f ];
+	if ( info.type == kSettingTypeName ) {
+		let s = document.getElementById( sid ).value;
+		for ( let i=0; ( i < s.length ) && ( i < info.maxLen ); ++i ) {
+			arr.push( s.charCodeAt( i ) & 0x7f );
+		}
+		arr.push( 0 );
+	} else if ( info.type == kSettingTypeBits64 ) {
+		let v = 0n;
+		for ( let b=0; b<64; ++b ) {
+			if ( document.getElementById( sid + "_b" + b ).checked ) {
+				v |= 1n << BigInt( b );
+			}
+		}
+		for ( let i=0; i<10; ++i ) {
+			arr.push( Number( ( v >> BigInt( 7*i ) ) & 0x7fn ) );
+		}
+	} else if ( info.isToggle ) {
+		let v = document.getElementById( sid ).checked ? 1 : 0;
+		arr.push( 0, 0, v );
+	} else {
+		let v = parseInt( document.getElementById( sid ).value );
+		if ( isNaN( v ) ) {
+			v = info.def;
+		}
+		v = Math.min( Math.max( v, info.min ), info.max );
+		arr.push( (v>>14)&3, (v>>7)&0x7f, v&0x7f );
+	}
+	arr.push( 0xF7 );
+	sendSettingsSysEx( arr, "setting value" );
+	// the module doesn't reply to a set, so ask for the value it ended up with
+	setTimeout( requestSettingValue, 20, id );
+	settingsSetUncommitted( true );
+	if ( document.getElementById( 'settings_autocommit' ).checked ) {
+		clearTimeout( settingsAutoCommitTimer );
+		settingsAutoCommitTimer = setTimeout( settingsCommit, kSettingsAutoCommitDelay );
+	}
+}
+
+function settingChangedHere( id ) {
+	if ( settingInfo[id].flags & kSettingFlagRestartsEngine ) {
+		settingsPending.add( id );
+		updateSettingsApplyButton( settingParent[id] );
+	} else {
+		sendSettingValue( id );
+	}
+}
+
+function settingsApply( g ) {
+	for ( let id of Array.from( settingsPending ) ) {
+		if ( settingParent[id] == g ) {
+			settingsPending.delete( id );
+			sendSettingValue( id );
+		}
+	}
+	updateSettingsApplyButton( g );
+}
+
+function settingsCommit() {
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x67, 0, 0xF7 ], "settings commit" );
+	settingsSetUncommitted( false );
+}
+
+function settingsRevert() {
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x67, 2, 0xF7 ], "settings revert" );
+	settingsSetUncommitted( false );
+	setTimeout( requestSettings, 500 );
+}
+
+function settingsFactoryReset() {
+	if ( !confirm( "Reset all module settings to default values?" ) ) {
+		return;
+	}
+	sendSettingsSysEx( [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x67, 1, 0xF7 ], "settings factory reset" );
+	settingsSetUncommitted( false );
+	setTimeout( requestSettings, 500 );
+}
 
 const dntLogKey = "dntShowLog";
 
@@ -2421,6 +2837,12 @@ function onMIDIMessage(message) {
 		processRoutingInfo( data.slice( 7, -1 ) );
 	} else if ( data[6] == 0x62 ) {
 		processCPUUsage( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x63 ) {
+		processSettingGroups( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x64 ) {
+		processSettingInfo( data.slice( 7, -1 ) );
+	} else if ( data[6] == 0x65 ) {
+		processSettingValue( data.slice( 7, -1 ) );
 	}
 }
 
@@ -2449,7 +2871,9 @@ function queryPaths() {
 }
 
 function refresh() {
-	if ( appMode != modeSlotEditor ) {
+	if ( appMode == modeSettings ) {
+		requestSettings();
+	} else if ( appMode != modeSlotEditor ) {
 		requestRouting();
 	} else {
 		request();
