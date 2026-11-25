@@ -286,6 +286,23 @@ function test( wh ) {
 	setTimeout( request, 10 );
 }
 
+// data starts at the format byte: 0 is one pixel per byte, 1 is run-length encoded
+function decodeScreenshot( data ) {
+	if ( data[0] != 1 ) {
+		return data.slice( 1 );
+	}
+	let pixels = new Uint8Array( 256 * 64 );
+	let p = 0;
+	let i = 1;
+	while ( ( i < data.length ) && ( p < pixels.length ) ) {
+		let b = data[ i++ ];
+		let n = ( b >= 0x70 ) ? ( data[ i++ ] + 8 ) : ( ( b >> 4 ) + 1 );
+		pixels.fill( b & 0xf, p, p + n );
+		p += n;
+	}
+	return pixels;
+}
+
 function processScreenshot( data ) {
 	let canvas=document.createElement("canvas");
 	let ctx=canvas.getContext("2d");
@@ -483,7 +500,7 @@ function onMIDIMessage(message) {
 	var dd = log( "received sysex (" + data.length + " bytes)" );
 	dumpSysex( data, "rxSysex", dd+"\n" );
 	if ( data[6] == 0x33 ) {
-		processScreenshot( data.slice( 8, -1 ) );
+		processScreenshot( decodeScreenshot( data.slice( 7, -1 ) ) );
 	}
 }
 function request() {
@@ -499,7 +516,7 @@ function request() {
 		var dd = log( "sent RTC update to disting NT" );
 		dumpSysex( arr, "txSysex", dd+"\n" );
 	}
-	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x01, 0xF7 ];
+	var arr = [ 0xF0, 0x00, 0x21, 0x27, 0x6D, sysExId, 0x01, 0x01, 0xF7 ];
 	output.send( arr );
 	var dd = log( "sent screenshot request to disting NT" );
 	dumpSysex( arr, "txSysex", dd+"\n" );
